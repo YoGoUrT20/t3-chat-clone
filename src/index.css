@@ -1,0 +1,67 @@
+body {
+  margin: 0;
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: 0.05em;
+  background-image: radial-gradient(closest-corner at 120px 36px, rgba(255, 1, 111, 0.19), rgba(255, 1, 111, 0.08)), linear-gradient(rgb(63, 51, 69) 15%, rgb(7, 3, 9));
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+.placeholder-custom-search::placeholder {
+  color: #786972;
+  opacity: 1;
+  font-weight: bold;
+}
+
+/* .placeholder-message-input::placeholder {
+  color: #8F8599;
+  opacity: 1;
+  font-weight: bold;
+  line-height: 1px;
+} */
+
+textarea:focus, input:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+::selection {
+  background: #A3004C;
+  color: #fff;
+}
+
+textarea::selection, input::selection {
+  background: #A3004C;
+  color: #fff;
+}
+
+.main-bg {
+  background: #1A1319;
+}
+
+textarea {
+  min-height: 60px;
+}
+
+textarea::placeholder {
+  color: #8F8599;
+  opacity: 1;
+  font-weight: bold;
+}
+
