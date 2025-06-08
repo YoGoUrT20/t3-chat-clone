@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowUp } from 'lucide-react';
 
 function SendButton({ disabled, onClick, className = '' }) {
   const buttonColor = disabled ? '#3C2235' : '#4D1F39';
@@ -9,7 +10,7 @@ function SendButton({ disabled, onClick, className = '' }) {
       <button 
         className={`
           inline-flex items-center justify-center
-          w-[40px] h-[40px]
+          w-[36px] h-[36px]
           text-white
           rounded-lg select-none
           transition-all duration-300 ease-in-out
@@ -20,7 +21,7 @@ function SendButton({ disabled, onClick, className = '' }) {
         onClick={disabled ? undefined : onClick}
         disabled={disabled}
       >
-        <span className="material-icons text-base">arrow_upward</span>
+        <ArrowUp size={18} color="#8E808A" />
       </button>
       
       {disabled && (

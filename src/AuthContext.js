@@ -5,13 +5,23 @@ import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  // Initialize user from localStorage if available
+  const [user, setUser] = useState(() => {
+    const cached = localStorage.getItem('user');
+    return cached ? JSON.parse(cached) : null;
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+      // Update localStorage with the latest user
+      if (firebaseUser) {
+        localStorage.setItem('user', JSON.stringify(firebaseUser));
+      } else {
+        localStorage.removeItem('user');
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -23,6 +33,7 @@ export function AuthProvider({ children }) {
 
   const signOutUser = async () => {
     await signOut(auth);
+    localStorage.removeItem('user');
   };
 
   return (

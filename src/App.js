@@ -1,13 +1,25 @@
 import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
-import ChatPanel from './components/ChatPanel';
+import SidePanel from './components/SidePanel';
 import MainContent from './components/MainContent';
 import { AuthProvider } from './AuthContext';
 import AuthPage from './components/AuthPage';
+import TermsOfService from './components/TermsOfService';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import SecurityPolicy from './components/SecurityPolicy';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 function App() {
   const [resetKey, setResetKey] = useState(0);
+  const [showSidebar, setShowSidebar] = useState(window.innerWidth > 960);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 960) setShowSidebar(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleReset = () => {
     setResetKey(prev => prev + 1);
@@ -19,6 +31,9 @@ function App() {
         <Toaster />
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/security-policy" element={<SecurityPolicy />} />
           <Route path="/" element={
             <div className="main-bg text-white flex h-screen overflow-hidden">
               <style jsx>{`
@@ -30,8 +45,8 @@ function App() {
                   to { transform: scale(1); opacity: 1; }
                 }
               `}</style>
-              <ChatPanel onReset={handleReset} />
-              <MainContent key={resetKey} />
+              <SidePanel onReset={handleReset} visible={showSidebar} setVisible={setShowSidebar} />
+              <MainContent key={resetKey} showSidebar={showSidebar} setShowSidebar={setShowSidebar} />
             </div>
           } />
         </Routes>

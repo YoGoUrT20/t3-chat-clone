@@ -63,5 +63,6 @@ textarea::placeholder {
   color: #8F8599;
   opacity: 1;
   font-weight: bold;
+  height: 48px !important;
 }
 

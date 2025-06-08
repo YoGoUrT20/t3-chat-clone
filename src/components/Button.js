@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Button({ icon, children, className = '', ...props }) {
+function Button({ icon, children, className = '', rounded = false, ...props }) {
   return (
     <button 
       className={`
@@ -8,7 +8,7 @@ function Button({ icon, children, className = '', ...props }) {
         h-9 px-4 py-2 text-sm font-semibold
         border border-[#49152F]
         text-[#EFBED9] shadow-sm
-        rounded-lg select-none
+        ${rounded ? 'rounded-full' : 'rounded-lg'} select-none
         bg-gradient-to-r from-pink-700/90 via-pink-700/70 to-pink-700/90
         transition-all duration-300 ease-in-out
         hover:from-[#78173F] hover:via-[#78173F]/90 hover:to-[#78173F]

@@ -38,7 +38,7 @@ You can find these values in your Firebase project settings. The app will not wo
 ## Folder Structure
 
 - `src/` - Main source code
-  - `components/` - UI components (ChatPanel, MainContent, AuthPage, etc.)
+  - `components/` - UI components (SidePanel, MainContent, AuthPage, etc.)
   - `firebase.js` - Firebase initialization
   - `AuthContext.js` - Authentication context/provider
   - `App.js` - Main app entry
