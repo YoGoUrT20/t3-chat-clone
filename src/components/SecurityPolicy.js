@@ -7,14 +7,14 @@ function SecurityPolicy() {
             <TosNavbar />
             <div className="pt-16 pb-8 flex flex-col items-center w-full">
                 <div className="prose prose-pink prose-tos max-w-5xl w-full mx-auto p-4 dark:prose-invert prose-pre:m-0 prose-pre:bg-transparent prose-pre:p-0">
-                    <h1 className="text-4xl font-black mb-8 text-[#FAF7FD]">T3 CHAT SECURITY POLICY</h1>
+                    <h1 className="text-4xl font-black mb-8 text-[#FAF7FD]">QUIVER SECURITY POLICY</h1>
                     <div className="text-[#FAF7FD] mb-10 text-base">Last Updated: 2025-02-14</div>
                     <h2 className="text-lg font-bold mb-4 text-[#FAF7FD]">1. Introduction</h2>
                     <ul className="space-y-3 pl-2 w-full">
                         <li className="flex items-start">
                             <span className="text-[#DC749E] text-2xl leading-8 mr-3 select-none flex-shrink-0">&bull;</span>
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                T3 Chat is committed to ensuring the security of our users' data and our platform. This security policy outlines our practices and procedures for maintaining security.
+                                Quiver is committed to ensuring the security of our users' data and our platform. This security policy outlines our practices and procedures for maintaining security.
                             </span>
                         </li>
                     </ul>
@@ -28,7 +28,7 @@ function SecurityPolicy() {
                         </li>
                         <li className="flex items-start">
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                If you discover a security vulnerability, please report it immediately to <a href="mailto:security@t3.chat" style={{ color: '#F472B6', textDecoration: 'underline' }}>security@t3.chat</a>. Include:
+                                If you discover a security vulnerability, please report it immediately to <a href="mailto:security@minefloat.com" style={{ color: '#F472B6', textDecoration: 'underline' }}>security@minefloat.com</a>. Include:
                                 <ul className="pl-6 mt-2 space-y-2">
                                     <li className="flex items-start">
                                         <span className="text-[#DC749E] text-xl leading-7 mr-2 select-none flex-shrink-0">&bull;</span>
@@ -84,7 +84,7 @@ function SecurityPolicy() {
                                     </li>
 
                                 </ul>
-                                We value the security community's contributions in keeping T3 Chat secure. All legitimate reports will be thoroughly investigated and addressed with appropriate urgency.
+                                We value the security community's contributions in keeping Quiver secure. All legitimate reports will be thoroughly investigated and addressed with appropriate urgency.
 
 
                             </span>
@@ -185,7 +185,7 @@ function SecurityPolicy() {
                                     <li className="flex items-start">
                                         <span className="text-[#DC749E] text-xl leading-7 mr-2 select-none flex-shrink-0">3.</span>
                                         <span className="text-[#F2EBFA] flex-1 leading-7" style={{ wordBreak: 'break-word' }}>
-                                            Never share access to your authorized T3 Chat sessions
+                                            Never share access to your authorized Quiver sessions
                                         </span>
                                     </li>
                                     <li className="flex items-start">

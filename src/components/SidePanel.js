@@ -1,15 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import Button from './Button';
-import { PanelLeft, Search, LogIn, X } from 'lucide-react';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarInput
+} from './ui/sidebar';
+import { Button } from './ui/button';
+import {
+  MessagesSquare,
+  Settings,
+  HelpCircle,
+  Search,
+  LogIn,
+} from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 
 function SidePanel({ onReset, visible, setVisible }) {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [searchValue, setSearchValue] = useState('');
+  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -19,109 +38,207 @@ function SidePanel({ onReset, visible, setVisible }) {
 
   if (windowWidth <= 960) return null;
 
+  function NavItem({ to, icon: Icon, children }) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild>
+          <Button
+            variant='ghost'
+            className='flex items-center px-3 py-2 text-sm rounded-md transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1F1F23] w-full justify-start'
+            onClick={() => navigate(to)}
+          >
+            <Icon className='h-4 w-4 mr-3 flex-shrink-0' />
+            {children}
+          </Button>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
+
+  // Tooltip handlers for message items
+  const showTooltip = (e, text) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltip({
+      visible: true,
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+      text,
+    });
+  };
+  const hideTooltip = () => {
+    setTooltip({ visible: false, x: 0, y: 0, text: '' });
+  };
+
+  // Message data
+  const groupedMessages = [
+    {
+      label: 'Today',
+      messages: [
+        'How do I integrate the new payment API with my existing workflow?',
+        'Show me a summary of the last quarter\'s analytics results.',
+      ],
+    },
+    {
+      label: 'Yesterday',
+      messages: [
+        'Can you help me debug this error: Unexpected token in JSON at position 10?',
+        'What are the best practices for securing user authentication?',
+      ],
+    },
+    {
+      label: 'Earlier',
+      messages: [
+        'Explain the difference between useEffect and useLayoutEffect in React.',
+        'How do I deploy a Next.js app to Vercel with environment variables?',
+      ],
+    },
+  ];
+
+  // Filtered messages by search
+  const filteredGroups = searchValue.trim()
+    ? groupedMessages
+        .map(group => ({
+            ...group,
+            messages: group.messages.filter(msg =>
+              msg.toLowerCase().includes(searchValue.trim().toLowerCase())
+            ),
+        }))
+        .filter(group => group.messages.length > 0)
+    : groupedMessages;
+  const hasResults = filteredGroups.length > 0;
+
   return (
-    <motion.aside
-      initial={false}
-      animate={{
-        width: visible ? 255 : 0,
-        opacity: visible ? 1 : 0,
-        pointerEvents: visible ? 'auto' : 'none',
-        padding: visible ? '1rem' : '0',
-      }}
-      transition={{ type: 'tween', duration: 0.15 }}
-      className={`left-panel-bg space-y-6 flex flex-col overflow-hidden`}
-      style={{ background: 'linear-gradient(to top, #0F0A0D 0%, #1B1219 100%)' }}
-    >
-      <div className="relative flex items-center justify-center h-10" style={{ marginTop: '-10px' }}>
-        <button
-          type="button"
-          onClick={() => setVisible(false)}
-          className="absolute left-0 p-1 rounded hover:bg-[#2A232B] transition-colors"
-          style={{ transition: 'background 0.2s', background: 'transparent', border: 'none', padding: 0, margin: 0, cursor: 'pointer', left: '3px', top: '20px' }}
-          aria-label="Close side panel"
-        >
-          <PanelLeft size={16} color="#E3BAD1" />
-        </button>
-        <div className="h-3.5 select-none flex items-center justify-center w-full" onClick={onReset} style={{ cursor: 'pointer' }}>
-          <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 247.7 53" className="size-full" style={{ color: '#E3BAD1' }}>
-            <path fill="currentColor" d="M205.6,50.3c1.9-1,3.5-2.2,4.7-3.6v4.4v0.4h0.4h7.7h0.4v-0.4V13.5v-0.4h-0.4h-7.7h-0.4v0.4v4.3c-1.2-1.4-2.8-2.6-4.6-3.5c-2.2-1.2-4.8-1.8-7.8-1.8c-3.3,0-6.3,0.8-9,2.5c-2.7,1.7-4.9,4-6.4,6.9l0,0c-1.6,3-2.4,6.4-2.4,10.2c0,3.8,0.8,7.3,2.4,10.3c1.6,3,3.7,5.4,6.4,7.1c2.7,1.7,5.7,2.6,8.9,2.6C200.6,52.1,203.3,51.5,205.6,50.3z M208.7,25.7l0.3,0.5c0.8,1.7,1.2,3.7,1.2,6c0,2.5-0.5,4.7-1.5,6.6c-1,1.9-2.4,3.3-4,4.2c-1.6,1-3.4,1.5-5.3,1.5c-1.9,0-3.6-0.5-5.3-1.5c-1.7-1-3-2.4-4-4.3c-1-1.9-1.5-4.1-1.5-6.6c0-2.5,0.5-4.7,1.5-6.5c1-1.8,2.3-3.2,4-4.1c1.6-1,3.4-1.4,5.3-1.4c1.9,0,3.7,0.5,5.3,1.4C206.4,22.5,207.7,23.9,208.7,25.7z"></path>
-            <path fill="currentColor" d="M99.6,21.4L99.6,21.4l-0.3,0.5c-1.6,3-2.4,6.5-2.4,10.4s0.8,7.4,2.4,10.4c1.6,3,3.8,5.3,6.6,7c2.8,1.7,6,2.5,9.6,2.5c4.5,0,8.2-1.2,11.3-3.5c3-2.3,5.1-5.4,6.2-9.3l0.1-0.5h-0.5h-8.3H124l-0.1,0.3c-0.7,1.9-1.7,3.3-3.1,4.3c-1.4,0.9-3.1,1.4-5.3,1.4c-3,0-5.4-1.1-7.2-3.3l0,0c-1.8-2.2-2.7-5.3-2.7-9.3c0-4,0.9-7,2.7-9.2c1.8-2.2,4.2-3.2,7.2-3.2c2.2,0,3.9,0.5,5.3,1.5c1.4,1,2.4,2.4,3.1,4.2l0.1,0.3h0.3h8.3h0.5l-0.1-0.5c-1-4.1-3.1-7.3-6.1-9.5c-3-2.2-6.8-3.3-11.4-3.3c-3.6,0-6.8,0.8-9.6,2.5l0,0C103.2,16.4,101.1,18.6,99.6,21.4z"></path>
-            <g>
-              <polygon fill="currentColor" points="237.8,13.2 237.8,3.9 229.1,3.9 229.1,13.2 224.8,13.2 224.8,20.5 229.1,20.5 229.1,52.1 230,51.2 230,51.2 232,49.2 237.8,43.2 237.8,20.5 246.8,20.5 246.8,13.2 "></polygon>
-              <path fill="currentColor" d="M71.7,3.4H51.5l-7.1,7.2h18.8"></path>
-              <path fill="currentColor" d="M166.8,14.5l-0.1-0.1c-2.3-1.3-4.9-1.9-7.7-1.9c-2.4,0-4.6,0.5-6.7,1.3c-1.6,0.7-3,1.7-4.2,2.8V0.1l-8.6,8.8v42.7h8.6V30.1c0-3.2,0.8-5.7,2.4-7.3c1.6-1.7,3.7-2.5,6.4-2.5s4.8,0.8,6.4,2.5c1.6,1.7,2.3,4.2,2.3,7.4v21.4h8.5V29c0-3.5-0.6-6.4-1.9-8.9C170.8,17.6,169,15.7,166.8,14.5z"></path>
-              <path fill="currentColor" d="M43,3.4H0v0.5l0,0v3.2v3.7h3.5l0,0h11.9v40.8H24V10.7h11.8L43,3.4z"></path>
-            </g>
-            <path fill="currentColor" d="M71.9,25.4l-0.2-0.2h0c-2.2-2.3-5.3-3.7-9.1-4.2L73.4,9.8V3.4H54.8l-9.4,7.2h17.7L52.5,21.8v5.9h7c2.5,0,4.4,0.7,5.9,2.2c1.4,1.4,2.1,3.4,2.1,6.1c0,2.6-0.7,4.7-2.1,6.2c-1.4,1.5-3.4,2.2-5.9,2.2c-2.5,0-4.4-0.7-5.7-2c-1.4-1.4-2.1-3.1-2.3-5.2l0-0.5h-8.1l0,0.5c0.2,4.6,1.8,8.1,4.8,10.5c2.9,2.4,6.7,3.7,11.3,3.7c5,0,9-1.4,11.9-4.2c2.9-2.8,4.4-6.6,4.4-11.3C75.6,31.5,74.4,28,71.9,25.4z"></path>
-            <rect x="84.3" y="44.2" fill="currentColor" width="6.9" height="6.9"></rect>
-          </svg>
-        </div>
-      </div>
-      
-      <Button onClick={onReset} style={{ marginTop: '8px' }}>New Chat</Button>
-      
-      <div className="flex items-center pb-1 border-b" style={{ borderColor: '#322028', borderBottomWidth: '1px', marginTop: '16px'}}>
-        <span className="flex items-center justify-center pl-1">
-          <Search size={15} color="#E7D0DD" />
-        </span>
-        <input 
-          className="text-sm w-full pl-3 pr-3 py-1.5 rounded-lg focus:outline-none focus:ring-0 bg-transparent border-none placeholder-custom-search"
-          style={{ color: '#EFEEF1', caretColor: '#fff' }}
-          placeholder="Search your threads..." 
-          type="text"
-          value={searchValue}
-          onChange={e => setSearchValue(e.target.value)}
-        />
-        {searchValue && (
-          <button
-            type="button"
-            onClick={() => setSearchValue('')}
-            onMouseOver={e => e.currentTarget.style.background = '#2A232B'}
-            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-            className="p-2 transition-colors rounded ml-1"
-            style={{ background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}
-            aria-label="Clear search"
-          >
-            <X size={16} color="#E7D0DD" />
-          </button>
-        )}
-      </div>
-      
-      <nav className="flex-grow overflow-y-auto mb-12"></nav>
-      <div>
-        {user ? (
-          <button
-            onClick={() => navigate('/settings/subscription')}
-            className="flex items-center space-x-2 p-2 rounded-lg w-full group hover:bg-[#2A232B] transition-colors"
-            style={{ background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}
-          >
-            <img 
-              alt={user.displayName}
-              className="w-8 h-8 rounded-full"
-              style={{ border: '1px solid #3B3337' }}
-              src={user.photoURL}
+    <SidebarProvider defaultOpen={visible}>
+      <Sidebar>
+        <SidebarHeader>
+          <Button onClick={onReset} className='w-full flex items-center justify-center gap-2 py-3'>
+            <img src='/quiver.svg' alt='Quiver Logo' width={28} height={28} className='mr-2' style={{ display: 'inline-block' }} />
+            <span className='text-xl font-bold tracking-tight text-gray-900 dark:text-white' style={{ position: 'relative', top: '5px' }}>Quiver</span>
+          </Button>
+        </SidebarHeader>
+        <SidebarContent>
+          <div className='relative flex items-center px-2 py-2'>
+            <Search size={16} className='text-gray-500 dark:text-gray-300 absolute left-3 pointer-events-none' />
+            <SidebarInput
+              placeholder='Search your threads...'
+              value={searchValue}
+              onChange={e => setSearchValue(e.target.value)}
+              className='pl-9 pr-9 flex-1 text-white custom-no-outline'
+              style={{ background: 'transparent', caretColor: '#fff', color: '#fff' }}
             />
-            <div className="flex flex-col items-start">
-              <p className="font-medium text-sm">{user.displayName}</p>
-              <p className="text-xs">Free</p>
-            </div>
-          </button>
-        ) : loading ? null : (
-          <button
-            onClick={() => navigate('/auth')}
-            className="flex items-center space-x-2 p-2 rounded-lg w-full group hover:bg-[#2A232B] transition-colors"
-            style={{ background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer', position: 'relative', top: '-5px' }}
+            {searchValue && (
+              <button
+                type='button'
+                onClick={() => setSearchValue('')}
+                aria-label='Clear search'
+                className='absolute right-3 p-1 rounded hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+                style={{ top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <span className='text-gray-500 dark:text-gray-300'>&#215;</span>
+              </button>
+            )}
+          </div>
+          <div className='h-0.5 w-7/12 bg-gray-200 dark:bg-[#28242A] my-1 mx-auto' />
+          <div className='space-y-6 mt-4'>
+            {hasResults ? (
+              filteredGroups.map(group => (
+                <SidebarGroup key={group.label}>
+                  <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                  <SidebarMenu>
+                    {group.messages.map((msg, idx) => (
+                      <SidebarMenuItem key={msg}>
+                        <SidebarMenuButton asChild>
+                          <Button
+                            variant='ghost'
+                            className='flex items-center px-3 py-2 text-sm rounded-md transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1F1F23] w-full justify-start overflow-hidden text-ellipsis'
+                            style={{ maxWidth: '100%' }}
+                            onMouseEnter={e => showTooltip(e, msg)}
+                            onMouseLeave={hideTooltip}
+                          >
+                            <MessagesSquare className='h-4 w-4 mr-3 flex-shrink-0' />
+                            <span className='truncate max-w-[160px] text-left'>
+                              {msg}
+                            </span>
+                          </Button>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroup>
+              ))
+            ) : (
+              <div className='text-center text-gray-500 dark:text-gray-400 py-8'>No results found.</div>
+            )}
+          </div>
+        </SidebarContent>
+        {tooltip.visible && tooltip.text && (
+          <div
+            style={{
+              position: 'fixed',
+              left: tooltip.x + 16,
+              top: tooltip.y + 20,
+              transform: 'translateY(-50%)',
+              zIndex: 50,
+              pointerEvents: 'none',
+            }}
+            className='px-2 py-1 rounded bg-zinc-900 text-white text-xs shadow-lg border border-zinc-700 select-none'
           >
-            <span className="w-8 h-8 flex items-center justify-center rounded-full">
-              <LogIn size={16} color="#E7D0DD" />
-            </span>
-            <div className="flex flex-col items-start">
-              <p className="font-medium text-sm" style={{ color: '#E7D0DD' }}>Login</p>
-            </div>
-          </button>
+            {tooltip.text}
+          </div>
         )}
-      </div>
-    </motion.aside>
+        <SidebarFooter>
+          <SidebarGroup>
+            <SidebarMenu>
+              {user && (
+                <NavItem to='/settings/customization' icon={Settings}>Settings</NavItem>
+              )}
+              <NavItem to='/privacy-policy#contact' icon={HelpCircle}>Help</NavItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarFooter>
+        <div className='mt-auto pb-4 px-2'>
+          {user ? (
+            <Button
+              variant='ghost'
+              className='flex items-center gap-3 p-2 justify-start pl-2 hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              onClick={() => navigate('/settings/subscription')}
+            >
+              <img
+                alt={user.displayName}
+                className='w-8 h-8 rounded-full border border-gray-300 dark:border-[#3B3337]'
+                src={user.photoURL}
+              />
+              <div className='flex flex-col items-start'>
+                <span className='font-medium text-sm text-gray-900 dark:text-white'>{user.displayName}</span>
+                <span className='text-xs text-gray-500 dark:text-gray-400'>Free</span>
+              </div>
+            </Button>
+          ) : loading ? null : (
+            <Button
+              variant='ghost'
+              className='flex items-center gap-3 p-2 justify-start pl-2 hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              onClick={() => navigate('/auth')}
+            >
+              <span className='w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#19171D]'>
+                <LogIn size={16} className='text-gray-500 dark:text-gray-300' />
+              </span>
+              <div className='flex flex-col items-start'>
+                <span className='font-medium text-sm text-gray-900 dark:text-gray-300'>Login</span>
+              </div>
+            </Button>
+          )}
+        </div>
+      </Sidebar>
+      <style>{`
+      .custom-no-outline,
+      .custom-no-outline:focus,
+      .custom-no-outline:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: transparent !important;
+      }
+      `}</style>
+    </SidebarProvider>
   );
 }
 

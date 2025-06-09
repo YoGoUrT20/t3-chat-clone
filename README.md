@@ -1,8 +1,8 @@
-# T3 Chat Clone
+# T3 Chat Clone - Quiver
 
 ## Features
 
-- Pure clone of T3 Chat
+- TODO
 
 
 ## Getting Started

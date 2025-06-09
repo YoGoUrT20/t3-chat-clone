@@ -25,6 +25,17 @@ function App() {
     setResetKey(prev => prev + 1);
   };
 
+  // Listen for t3-new-chat event and expose window.t3NewChat
+  React.useEffect(() => {
+    window.t3NewChat = handleReset;
+    const listener = () => handleReset();
+    window.addEventListener('t3-new-chat', listener);
+    return () => {
+      window.removeEventListener('t3-new-chat', listener);
+      delete window.t3NewChat;
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

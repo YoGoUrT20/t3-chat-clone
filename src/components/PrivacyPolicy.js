@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import TosNavbar from './TosNavbar';
 
 function PrivacyPolicy() {
+    useEffect(() => {
+        if (window.location.hash === '#contact') {
+            const el = document.getElementById('policy-contact');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }, []);
+
     return (
         <div className="min-h-screen w-full bg-[#21141E] text-[#FAF7FD] relative">
             <TosNavbar />
@@ -33,7 +42,7 @@ function PrivacyPolicy() {
                     }
                 `}</style>
                 <div className="prose prose-pink prose-tos max-w-5xl w-full mx-auto p-4 dark:prose-invert prose-pre:m-0 prose-pre:bg-transparent prose-pre:p-0">
-                    <h1 className="text-4xl font-black mb-8 text-[#FAF7FD]">T3 CHAT PRIVACY POLICY</h1>
+                    <h1 className="text-4xl font-black mb-8 text-[#FAF7FD]">QUIVER PRIVACY POLICY</h1>
                     <div className="text-[#FAF7FD] mb-2 text-base">Last Updated: 2025-05-31</div>
                     <div className="text-[#FAF7FD] mb-10 text-base">Effective Date: 2025-05-31</div>
                     <h2 className="text-lg font-bold mb-4 text-[#FAF7FD]">1. Introduction</h2>
@@ -41,7 +50,7 @@ function PrivacyPolicy() {
                         <li className="flex items-start">
                             <span className="text-[#DC749E] text-2xl leading-8 mr-3 select-none flex-shrink-0">&bull;</span>
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                This privacy policy (&apos;Policy&apos;) describes how T3 Tools, Inc. (&apos;Company&apos;, &apos;T3 Tools&apos;, &apos;we&apos;, &apos;us&apos;) collects, uses, and shares personal information of consumer users of this website, T3 Chat https://t3.chat (the &apos;Site&apos;), as well as associated products and services, including UploadThing (together, the &apos;Services&apos;), and applies to personal information that we collect through the Site and our Services as well as personal information you provide to us directly. This Policy also applies to any of our other websites and Services that post this Policy. Please note that by using the Site or the Services, you accept the practices and policies described in this Policy and you consent that we will collect, use, and share your personal information as described below. If you do not agree to this Policy, please do not use the Site or the Services.
+                                This privacy policy (&apos;Policy&apos;) describes how Quiver, Inc. (&apos;Company&apos;, &apos;Quiver&apos;, &apos;we&apos;, &apos;us&apos;) collects, uses, and shares personal information of consumer users of this website, Quiver https://quiver.chat (the &apos;Site&apos;), as well as associated products and services, including UploadThing (together, the &apos;Services&apos;), and applies to personal information that we collect through the Site and our Services as well as personal information you provide to us directly. This Policy also applies to any of our other websites and Services that post this Policy. Please note that by using the Site or the Services, you accept the practices and policies described in this Policy and you consent that we will collect, use, and share your personal information as described below. If you do not agree to this Policy, please do not use the Site or the Services.
                             </span>
                         </li>
                     </ul>
@@ -50,18 +59,18 @@ function PrivacyPolicy() {
                         <li className="flex items-start">
                             <span className="text-[#DC749E] text-2xl leading-8 mr-3 select-none flex-shrink-0">&bull;</span>
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                We collect personal information about you in a number of different ways. Our products, T3 Chat and UploadThing, collect different personal information:
+                                We collect personal information about you in a number of different ways. Our products, Quiver and UploadThing, collect different personal information:
                             </span>
                         </li>
                         <li className="flex items-start">
                             <span className="text-[#DC749E] text-2xl leading-8 mr-3 select-none flex-shrink-0">&bull;</span>
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                Personal Information From Users Of T3 Chat: When you use our T3 Chat product, we collect the following personal information from you:
+                                Personal Information From Users Of Quiver: When you use our Quiver product, we collect the following personal information from you:
                                 <ul className="pl-6 mt-2 space-y-2">
                                     <li className="flex items-start">
                                         <span className="text-[#DC749E] text-2xl leading-8 mr-3 select-none flex-shrink-0">&bull;</span>
                                         <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                            User content: your prompts to the T3 Chat product and other content you upload to the product, including PDF files, images and text files.
+                                            User content: your prompts to the Quiver product and other content you upload to the product, including PDF files, images and text files.
                                         </span>
                                     </li>
                                     <li className="flex items-start">
@@ -101,7 +110,7 @@ function PrivacyPolicy() {
                         </li>
                         <li className="flex items-start">
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                Personal Information From Users Of Our Websites Generally: When you use our Services, including our website, T3 Chat and UploadThing, we collect personal information that you provide to us, which may include the following categories of personal information depending on how you use our Services and communicate with us:
+                                Personal Information From Users Of Our Websites Generally: When you use our Services, including our website, Quiver and UploadThing, we collect personal information that you provide to us, which may include the following categories of personal information depending on how you use our Services and communicate with us:
                                 <ul className="pl-6 mt-2 space-y-2">
                                     <li className="flex items-start">
                                         <span className="text-[#DC749E] text-2xl leading-8 mr-3 select-none flex-shrink-0">&bull;</span>
@@ -180,7 +189,7 @@ function PrivacyPolicy() {
                     <ul className="space-y-3 pl-2 w-full">
                         <li className="flex items-start">
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                Subject to this Privacy Policy, our terms of use, and applicable terms and conditions of third-party applications, all data transmitted through the Site and the Services is owned by T3 Chat. Generally, we may use information in the following ways and as otherwise described in this Privacy Policy:
+                                Subject to this Privacy Policy, our terms of use, and applicable terms and conditions of third-party applications, all data transmitted through the Site and the Services is owned by Quiver. Generally, we may use information in the following ways and as otherwise described in this Privacy Policy:
                             </span>
                         </li>
                         <li className="flex items-start">
@@ -244,7 +253,7 @@ function PrivacyPolicy() {
                         </li>
                         <li className="flex items-start">
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                Marketing. We may use your general identifiers, online identifiers, internet activity information and commercial information in connection with sending you marketing communications as permitted by law, including by mail and email. You may opt-out of marketing communications by following the unsubscribe instructions in marketing emails, or by emailing us at <a href="mailto:support@t3.chat" style={{ color: '#F472B6', textDecoration: 'underline' }}>support@t3.chat</a>.
+                                Marketing. We may use your general identifiers, online identifiers, internet activity information and commercial information in connection with ssupportending you marketing communications as permitted by law, including by mail and email. You may opt-out of marketing communications by following the unsubscribe instructions in marketing emails, or by emailing us at <a href="mailto:support@minefloat.com" style={{ color: '#F472B6', textDecoration: 'underline' }}>support@minefloat.com</a>.
                             </span>
                         </li>
                         <li className="flex items-start">
@@ -368,7 +377,7 @@ function PrivacyPolicy() {
                         </li>
                         <li className="flex items-start">
                             <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                Corporate Restructuring. We may share some or all of your personal information in connection with or during negotiation of any merger, financing, acquisition or dissolution, transaction or proceeding involving the sale, transfer, divestiture, or disclosure of all or a portion of our business or assets. In the event of an insolvency, bankruptcy, or receivership, personal information may also be transferred as a business asset. If another company acquires T3 Tools our business, or assets, that company will possess the personal information collected by us and will assume the rights and obligations regarding your personal information described in this Privacy Policy.
+                                Corporate Restructuring. We may share some or all of your personal information in connection with or during negotiation of any merger, financing, acquisition or dissolution, transaction or proceeding involving the sale, transfer, divestiture, or disclosure of all or a portion of our business or assets. In the event of an insolvency, bankruptcy, or receivership, personal information may also be transferred as a business asset. If another company acquires Quiver our business, or assets, that company will possess the personal information collected by us and will assume the rights and obligations regarding your personal information described in this Privacy Policy.
                             </span>
                         </li>
                         <li className="flex items-start">
@@ -390,7 +399,7 @@ function PrivacyPolicy() {
                                     <li className="flex items-start">
                                         <span className="text-[#DC749E] text-2xl leading-8 mr-3 select-none flex-shrink-0">&bull;</span>
                                         <span className="text-[#F2EBFA] flex-1 max-w-5xl leading-8" style={{ wordBreak: 'break-word' }}>
-                                            To protect or defend the rights or property of T3 Tools or users of the Site or Services; and/or
+                                            To protect or defend the rights or property of Quiver or users of the Site or Services; and/or
                                         </span>
                                     </li>
                                     <li className="flex items-start">
@@ -442,11 +451,10 @@ function PrivacyPolicy() {
                     <div className="mb-6">
                         <p>We reserve the right to change this Privacy Policy at any time. If we make any material changes to this Privacy Policy, we will post the revised version to our website and update the "Effective Date" at the top of this Privacy Policy. Except as otherwise indicated, any changes will become effective when we post the revised Privacy Policy on our website.</p>
                     </div>
-                    <h2 className="text-lg font-bold mb-4 text-[#FAF7FD]">11. Contact Us</h2>
+                    <h2 id="policy-contact" className="text-lg font-bold mb-4 text-[#FAF7FD]">11. Contact Us</h2>
                     <div className="mb-6">
                         <p>Our contact information is as follows:</p>
-                        <p className="mt-2">T3 Tools, Inc.<br />2261 Market Street #5309<br />San Francisco, CA 94114</p>
-                        <p className="mt-2">Email: <a href="mailto:privacy@t3.chat" style={{ color: '#F472B6', textDecoration: 'underline' }}>privacy@t3.chat</a></p>
+                        <p className="mt-2">Email: <a href="mailto:work@minefloat.com" style={{ color: '#F472B6', textDecoration: 'underline' }}>work@minefloat.com</a></p>
                     </div>
                 </div>
             </div>
