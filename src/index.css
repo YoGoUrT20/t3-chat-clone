@@ -35,10 +35,11 @@ html, body, #root {
   line-height: 1px;
 } */
 
-textarea:focus, input:focus {
+textarea, input[type='text'], input[type='search'], input[type='email'], input[type='password'] {
+  border: none !important;
   outline: none;
   box-shadow: none;
-  border-color: transparent;
+  background: transparent;
 }
 
 ::selection {
@@ -52,7 +53,7 @@ textarea::selection, input::selection {
 }
 
 .main-bg {
-  background: #1A1319;
+  background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
 }
 
 textarea {
@@ -72,5 +73,10 @@ textarea::placeholder {
 }
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
+}
+
+.message-input-container {
+  border: none !important;
+  background: transparent !important;
 }
 

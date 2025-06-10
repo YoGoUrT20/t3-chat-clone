@@ -1,4 +1,4 @@
-# T3 Chat Clone - Quiver
+# T3 Chat Clone - Quiver 🏹
 
 ## Features
 
@@ -8,16 +8,18 @@
 ## Getting Started
 
 1. Clone the repository:
-   
+   `git clone https://github.com/YoGoUrT20/t3-chat-clone.git`
+
+2. Install dependencies:
    `npm install`
 
-2. Set up your environment variables (see below).
+3. Set up your environment variables and firebase (see below).
 
-3. Start the development server:
+4. Start the development server:
    
    `npm run dev`
 
-4. Open http://localhost:3000 in your browser.
+5. Open http://localhost:3000 in your browser.
 
 ## Environment Variables
 
@@ -31,6 +33,8 @@ REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
 REACT_APP_FIREBASE_APP_ID=your_app_id
 REACT_APP_FIREBASE_MEASUREMENT_ID=your_measurement_id
+REACT_APP_FUNCTIONS_URL=https://<server-region>-<project-id>.cloudfunctions.net
+
 ```
 
 You can find these values in your Firebase project settings. The app will not work without these variables set.

@@ -1,0 +1,21 @@
+.chatMarkdownPre::-webkit-scrollbar {
+  height: 8px;
+  background: #221D27;
+  border-radius: 8px;
+}
+.chatMarkdownPre::-webkit-scrollbar-thumb {
+  background: #3C2235;
+  border-radius: 8px;
+}
+.chatMarkdownPre::-webkit-scrollbar-thumb:hover {
+  background: #4D1F39;
+}
+.chatMarkdownPre::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+.chatMarkdownPre {
+  scrollbar-width: thin;
+  scrollbar-color: #3C2235 #221D27;
+} 

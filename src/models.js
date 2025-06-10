@@ -11,7 +11,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'google/gemini-2.5-flash',
+    openRouterName: 'google/gemini-2.5-flash-preview-05-20',
   },
   {
     name: 'gemini-2.5-pro',
@@ -25,7 +25,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'google/gemini-2.5-pro',
+    openRouterName: 'google/gemini-2.5-pro-exp-03-25',
   },
   {
     name: 'gpt-imagegen',
@@ -53,7 +53,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'openai/gpt-4o-mini',
+    openRouterName: 'openai/o4-mini',
   },
   {
     name: 'claude-4-sonnet',
@@ -67,7 +67,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'anthropic/claude-4-sonnet',
+    openRouterName: 'anthropic/claude-sonnet-4',
   },
   {
     name: 'claude-4-sonnet-reasoning',
@@ -81,7 +81,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: true,
     freeAccess: false,
-    openRouterName: 'anthropic/claude-4-sonnet',
+    openRouterName: 'anthropic/claude-sonnet-4',
   },
   {
     name: 'deepseek-r1',
@@ -95,7 +95,7 @@ export const models = [
     additionalInfo: 'deepseek',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'deepseek-ai/deepseek-llm-r1',
+    openRouterName: 'deepseek/deepseek-r1:free',
   },
   {
     name: 'gemini-2.0-flash',
@@ -109,7 +109,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'google/gemini-2.0-flash',
+    openRouterName: 'google/gemini-2.0-flash-001',
   },
   {
     name: 'gemini-2.0-flash-lite',
@@ -123,7 +123,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'google/gemini-2.0-flash-lite',
+    openRouterName: 'google/gemini-2.0-flash-lite-001',
   },
   {
     name: 'gemini-2.5-flash-thinking',
@@ -137,7 +137,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'google/gemini-2.5-flash',
+    openRouterName: 'google/gemini-2.5-flash-preview-05-20',
   },
   {
     name: 'gpt-4o-mini',
@@ -165,7 +165,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'openai/gpt-4o',
+    openRouterName: 'openai/chatgpt-4o-latest',
   },
   {
     name: 'gpt-4.1',
@@ -221,7 +221,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'openai/gpt-o3-mini',
+    openRouterName: 'openai/o3-mini',
   },
   {
     name: 'gpt-o3',
@@ -235,7 +235,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: true,
     freeAccess: false,
-    openRouterName: 'openai/gpt-o3',
+    openRouterName: 'openai/o3',
   },
   {
     name: 'claude-3.5-sonnet',
@@ -277,7 +277,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: true,
     freeAccess: false,
-    openRouterName: 'anthropic/claude-3.7-sonnet',
+    openRouterName: 'anthropic/claude-3.7-sonnet:thinking',
   },
   {
     name: 'claude-4-opus',
@@ -291,7 +291,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: true,
     freeAccess: false,
-    openRouterName: 'anthropic/claude-4-opus',
+    openRouterName: 'anthropic/claude-opus-4',
   },
   {
     name: 'llama-3.3-70b-experimental',
@@ -304,8 +304,8 @@ export const models = [
     experimental: true,
     additionalInfo: 'llama distilled',
     apiKeyRequired: false,
-    freeAccess: false,
-    openRouterName: 'meta-llama/llama-3.3-70b',
+    freeAccess: true,
+    openRouterName: 'shisa-ai/shisa-v2-llama3.3-70b:free',
   },
   {
     name: 'llama-4-scout',
@@ -319,7 +319,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'meta-llama/llama-4-scout',
+    openRouterName: 'meta-llama/llama-4-scout:free',
   },
   {
     name: 'llama-4-maverick',
@@ -332,8 +332,8 @@ export const models = [
     experimental: true,
     additionalInfo: '',
     apiKeyRequired: false,
-    freeAccess: false,
-    openRouterName: 'meta-llama/llama-4-maverick',
+    freeAccess: true,
+    openRouterName: 'meta-llama/llama-4-maverick:free',
   },
   {
     name: 'deepseek-v3-0324',
@@ -345,9 +345,9 @@ export const models = [
     reasoning: false,
     experimental: true,
     additionalInfo: 'deepseek',
-    apiKeyRequired: true,
-    freeAccess: false,
-    openRouterName: 'deepseek-ai/deepseek-v3-0324',
+    apiKeyRequired: false,
+    freeAccess: true,
+    openRouterName: 'deepseek/deepseek-chat-v3-0324:free',
   },
   {
     name: 'deepseek-r1-0528-thinking',
@@ -360,8 +360,8 @@ export const models = [
     experimental: true,
     additionalInfo: 'deepseek',
     apiKeyRequired: false,
-    freeAccess: false,
-    openRouterName: 'deepseek-ai/deepseek-llm-r1-0528',
+    freeAccess: true,
+    openRouterName: 'deepseek/deepseek-r1-zero:free',
   },
   {
     name: 'deepseek-r1-qwen-distilled',
@@ -374,8 +374,8 @@ export const models = [
     experimental: false,
     additionalInfo: 'qwen distilled',
     apiKeyRequired: false,
-    freeAccess: false,
-    openRouterName: 'deepseek-ai/deepseek-llm-r1-qwen',
+    freeAccess: true,
+    openRouterName: 'deepseek/deepseek-r1-0528-qwen3-8b:free',
   },
   {
     name: 'grok-3',
@@ -389,7 +389,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'xai/grok-3',
+    openRouterName: 'x-ai/grok-3-beta',
   },
   {
     name: 'grok-3-mini-thinking',
@@ -403,7 +403,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: false,
-    openRouterName: 'xai/grok-3-mini',
+    openRouterName: 'x-ai/grok-3-mini-beta',
   },
   {
     name: 'qwen-qwq-32b-thinking',
@@ -416,8 +416,8 @@ export const models = [
     experimental: true,
     additionalInfo: '',
     apiKeyRequired: false,
-    freeAccess: false,
-    openRouterName: 'qwen/qwq-32b',
+    freeAccess: true,
+    openRouterName: 'deepseek/deepseek-r1-distill-qwen-32b:free',
   },
   {
     name: 'qwen-2.5-32b-vision',
@@ -445,6 +445,6 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: true,
     freeAccess: false,
-    openRouterName: 'openai/gpt-4.5',
+    openRouterName: 'openai/gpt-4.5-preview',
   },
 ]; 

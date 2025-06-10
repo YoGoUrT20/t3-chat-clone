@@ -3,8 +3,8 @@ import React from 'react';
 function CategoryButton({ icon, text, onClick }) {
   return (
     <button 
-      className="text-sm font-bold rounded-full flex items-center justify-center space-x-1 bg-[#27222D] hover:bg-[#362D3D] transition-colors border" 
-      style={{ borderColor: '#302836', color: '#BFB3CB', height: '36px', width: '97px' }}
+      className="text-sm font-bold rounded-full flex items-center justify-center space-x-1 bg-blue-900/60 hover:bg-blue-800/80 transition-colors border border-blue-400/30 shadow-md" 
+      style={{ color: '#E0E8FF', height: '36px', width: '97px' }}
       onClick={onClick}
     >
       {icon}

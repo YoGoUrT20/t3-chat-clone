@@ -5,7 +5,7 @@ import { models } from '../models';
 import { capabilityColors, familyIcons } from '../constants';
 import { Button } from './ui/button';
 
-function ModelSelectionMobile({ items = models, className }) {
+function ModelSelectionMobile({ items = models, className, selectedModel, onModelSelect }) {
   const familyOrder = ['claude', 'gemini', 'chatgpt', 'deepseek', 'llama', 'grok', 'qwen'];
   const sortByCustomFamilyOrder = (models) => {
     return [...models].sort((a, b) => {
@@ -47,14 +47,18 @@ function ModelSelectionMobile({ items = models, className }) {
         <div className='flex flex-col gap-2'>
           {sortedItems.map((item) => {
             const { blockedByKey, blockedByLock, isBlocked } = item;
+            const isSelected = selectedModel && selectedModel.name === item.name;
             return (
               <div
                 key={item.name}
                 className={cn(
                   'flex items-center gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900/70 shadow-sm',
                   isBlocked && 'opacity-60 relative',
+                  isSelected && 'border-green-500 ring-2 ring-green-500',
+                  !isBlocked && 'cursor-pointer',
                 )}
                 style={{ minHeight: 64 }}
+                onClick={() => !isBlocked && onModelSelect && onModelSelect(item)}
               >
                 {item.family && familyIcons[item.family] && (
                   <img

@@ -171,6 +171,7 @@ const Sidebar = React.forwardRef(
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        style={{ '--sidebar-width': '18rem' }}
         {...props}
       >
         {children}

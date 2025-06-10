@@ -3,11 +3,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Form as UIForm } from './ui/form';
 import { Button } from './ui/button';
-import { ImageIcon, SlidersHorizontal, ArrowUp } from 'lucide-react';
+import { SlidersHorizontal, ArrowUp, Paperclip } from 'lucide-react';
 import AutoResizeTextarea from './auto-resize-textarea';
 import ImageUploadArea from './image-upload-area';
 import { formSchema } from '../lib/form-schema';
-import { useMediaQuery } from '../hooks/use-media-query';
 import { cn } from '../lib/utils';
 import PropTypes from 'prop-types';
 import { MESSAGE_PLACEHOLDERS } from '../constants';
@@ -15,9 +14,10 @@ import ModelSelection from './ModelSelection';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '../hooks/use-mobile';
 import ModelSelectionMobile from './ModelSelectionMobile';
+import Tooltip from './Tooltip';
 
-function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage }) {
-  const [previewUrls, setPreviewUrls] = useState([]);
+function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage, selectedModel, setSelectedModel }) {
+  const [previewFiles, setPreviewFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
@@ -28,6 +28,8 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage 
   const isMobile = useIsMobile();
   const inputRef = useRef(null);
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
+  const dropdownRef = useRef(null);
+  const toggleButtonRef = useRef(null);
 
   // Pick a random placeholder only once per mount
   const randomPlaceholderRef = useRef(MESSAGE_PLACEHOLDERS[Math.floor(Math.random() * MESSAGE_PLACEHOLDERS.length)]);
@@ -90,36 +92,45 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage 
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const handleImageChange = (e) => {
+  const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
-    addImages(files);
+    addFiles(files);
   };
 
-  const addImages = useCallback((files) => {
+  const addFiles = useCallback((files) => {
     if (files.length === 0) return;
-    const currentImages = form.getValues('images') || [];
-    const totalImages = currentImages.length + files.length;
-    if (totalImages > 5) {
-      setError('You can upload a maximum of 5 images');
-      const allowedNewImages = 5 - currentImages.length;
-      files = files.slice(0, allowedNewImages);
+    const currentFiles = form.getValues('images') || [];
+    const totalFiles = currentFiles.length + files.length;
+    if (totalFiles > 5) {
+      setError('You can upload a maximum of 5 files');
+      const allowedNewFiles = 5 - currentFiles.length;
+      files = files.slice(0, allowedNewFiles);
       if (files.length === 0) return;
     }
-    const newPreviewUrls = files.map((file) => URL.createObjectURL(file));
-    const updatedImages = [...currentImages, ...files];
-    setPreviewUrls([...previewUrls, ...newPreviewUrls]);
-    form.setValue('images', updatedImages);
-  }, [form, previewUrls]);
+    const newPreviewFiles = files.map((file) => {
+      if (file.type === 'application/pdf') {
+        return { type: 'pdf', file, name: file.name, size: file.size };
+      } else if (file.type.startsWith('image/')) {
+        return { type: 'image', file, url: URL.createObjectURL(file), name: file.name, size: file.size };
+      }
+      return null;
+    }).filter(Boolean);
+    const updatedFiles = [...currentFiles, ...files];
+    setPreviewFiles([...previewFiles, ...newPreviewFiles]);
+    form.setValue('images', updatedFiles);
+  }, [form, previewFiles]);
 
-  const removeImage = (index) => {
-    const currentImages = form.getValues('images') || [];
-    const newImages = [...currentImages];
-    newImages.splice(index, 1);
-    const newPreviewUrls = [...previewUrls];
-    URL.revokeObjectURL(newPreviewUrls[index]);
-    newPreviewUrls.splice(index, 1);
-    setPreviewUrls(newPreviewUrls);
-    form.setValue('images', newImages);
+  const removeFile = (index) => {
+    const currentFiles = form.getValues('images') || [];
+    const newFiles = [...currentFiles];
+    newFiles.splice(index, 1);
+    const newPreviewFiles = [...previewFiles];
+    if (newPreviewFiles[index]?.type === 'image') {
+      URL.revokeObjectURL(newPreviewFiles[index].url);
+    }
+    newPreviewFiles.splice(index, 1);
+    setPreviewFiles(newPreviewFiles);
+    form.setValue('images', newFiles);
   };
 
   const triggerFileInput = () => {
@@ -152,7 +163,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage 
         dragCounter.current = 0;
         setIsDragging(false);
         const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith('image/'));
-        addImages(files);
+        addFiles(files);
       }
     };
     window.addEventListener('dragenter', handleWindowDragEnter);
@@ -165,7 +176,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage 
       window.removeEventListener('dragover', handleWindowDragOver);
       window.removeEventListener('drop', handleWindowDrop);
     };
-  }, [addImages]);
+  }, [addFiles]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -175,6 +186,8 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage 
       }
     }
   };
+
+  const modelSupportsAttachments = selectedModel && Array.isArray(selectedModel.capabilities) && (selectedModel.capabilities.includes('vision') || selectedModel.capabilities.includes('imagegen'));
 
   const showTooltip = (e, text) => {
     if (isMobile) return;
@@ -191,6 +204,33 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage 
     setTooltip({ visible: false, x: 0, y: 0, text: '' });
   };
 
+  // Add a handler to select model and close the selection after 0.2s
+  const handleModelSelect = (model) => {
+    setSelectedModel(model);
+    const supportsAttachments = Array.isArray(model.capabilities) && (model.capabilities.includes('vision') || model.capabilities.includes('imagegen'));
+    if (!supportsAttachments) {
+      // Clear images and previews if switching to a model that does not support attachments
+      setPreviewFiles([]);
+      form.setValue('images', []);
+    }
+    setTimeout(() => setShowOptions(false), 200);
+  };
+
+  useEffect(() => {
+    if (!showOptions || isMobile) return;
+    const handleClickOutside = (event) => {
+      if (
+        (dropdownRef.current && dropdownRef.current.contains(event.target)) ||
+        (toggleButtonRef.current && toggleButtonRef.current.contains(event.target))
+      ) {
+        return;
+      }
+      setShowOptions(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showOptions, isMobile]);
+
   return (
     <UIForm {...form}>
       <form ref={formRef} onSubmit={form.handleSubmit((...args) => {
@@ -198,124 +238,127 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage 
           inputRef.current.style.height = 'auto';
           inputRef.current.style.overflowY = 'hidden';
         }
-        onSubmit(...args);
+        onSubmit(...args, selectedModel);
       })} 
         className={cn('relative', isMobile && 'fixed bottom-0 left-0 w-full z-30 bg-[#221D27] p-2 pb-4', !isMobile && '')}
         style={isMobile ? { boxShadow: '0 -2px 24px 0 rgba(0,0,0,0.25)' } : {}}>
-        <div
-          ref={dropAreaRef}
-          className={cn(
-            'relative bg-black/60 backdrop-blur-md rounded-[24px] overflow-visible transition-all shadow-lg border border-[rgba(255,255,255,0.12)] max-w-2xl mx-auto',
-            isLoading && 'animate-pulse-loading pointer-events-none opacity-70',
-            isMobile && 'max-w-full rounded-2xl'
-          )}
-        >
-          <ImageUploadArea previewUrls={previewUrls} onRemoveImage={removeImage} isLoading={isLoading} />
-          <div className='px-2 py-1.5'>
-            <div className='flex items-end'>
-              <div className='flex flex-row space-x-0'>
-                <input
-                  type='file'
-                  ref={fileInputRef}
-                  accept='image/*'
-                  multiple
-                  onChange={handleImageChange}
-                  className='hidden'
-                  disabled={isLoading}
-                />
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  onClick={triggerFileInput}
-                  className='text-gray-400 hover:text-white hover:bg-transparent rounded-full h-10 w-10 ml-0'
-                  disabled={isLoading}
-                  onMouseEnter={e => showTooltip(e, 'Add image')}
-                  onMouseLeave={hideTooltip}
-                >
-                  <ImageIcon className='h-5 w-5' />
-                </Button>
-                <div className='relative'>
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    onClick={() => {
-                      setShowOptions((prev) => !prev);
-                      onOpenOptions();
-                    }}
-                    className='text-gray-400 hover:text-white hover:bg-transparent rounded-full h-10 w-10 ml-0'
-                    disabled={isLoading}
-                    onMouseEnter={e => showTooltip(e, 'Model selection (Ctrl+M)')}
+        <div className="relative max-w-2xl mx-auto message-input-container">
+          {/* Liquid glass border effect */}
+          <div className="absolute inset-0 z-0 rounded-[24px] pointer-events-none border-2 border-white/60 bg-gradient-to-br from-white/10 via-white/5 to-white/0 backdrop-blur-2xl backdrop-brightness-125" style={{boxShadow: '0 0 16px 2px rgba(255,255,255,0.10), 0 4px 32px 0 rgba(0,0,0,0.18)'}} />
+          {/* Main glass content */}
+          <div
+            ref={dropAreaRef}
+            className={cn(
+              'relative z-10 bg-white/5 backdrop-blur-lg rounded-[24px] overflow-visible transition-all shadow-xl',
+              isLoading && 'animate-pulse-loading pointer-events-none opacity-70',
+              isMobile && 'max-w-full rounded-2xl'
+            )}
+            style={{ boxShadow: '0 0 12px 2px rgba(255,255,255,0.10)' }}
+            onDragEnter={modelSupportsAttachments ? undefined : (e) => e.preventDefault()}
+            onDragOver={modelSupportsAttachments ? undefined : (e) => e.preventDefault()}
+            onDrop={modelSupportsAttachments ? undefined : (e) => e.preventDefault()}
+          >
+            <ImageUploadArea previewFiles={previewFiles} onRemoveFile={removeFile} isLoading={isLoading || !modelSupportsAttachments} />
+            <div className='px-2 py-1.5'>
+              <div className='flex items-end'>
+                <div className='flex flex-row space-x-0'>
+                  <input
+                    type='file'
+                    ref={fileInputRef}
+                    accept='image/*,application/pdf'
+                    multiple
+                    onChange={handleFileChange}
+                    className='hidden'
+                    disabled={isLoading || !modelSupportsAttachments}
+                  />
+                  <div
+                    onMouseEnter={e => showTooltip(e, modelSupportsAttachments ? 'Add file' : 'This model does not support vision or image attachments')}
                     onMouseLeave={hideTooltip}
+                    style={{ display: 'inline-block' }}
                   >
-                    <SlidersHorizontal className='h-5 w-5' />
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      onClick={modelSupportsAttachments ? triggerFileInput : undefined}
+                      className='text-gray-400 hover:text-white hover:bg-transparent rounded-full h-10 w-10 ml-0'
+                      disabled={isLoading || !modelSupportsAttachments}
+                    >
+                      <Paperclip className='h-5 w-5' />
+                    </Button>
+                  </div>
+                  <div className='relative'>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      ref={toggleButtonRef}
+                      onClick={() => {
+                        setShowOptions((prev) => !prev);
+                        onOpenOptions();
+                      }}
+                      className='text-gray-400 hover:text-white hover:bg-transparent rounded-full h-10 w-10 ml-0'
+                      disabled={isLoading}
+                      onMouseEnter={e => showTooltip(e, 'Model selection (Ctrl+M)')}
+                      onMouseLeave={hideTooltip}
+                    >
+                      <SlidersHorizontal className='h-5 w-5' />
+                    </Button>
+                    <AnimatePresence>
+                      {showOptions && (
+                        <motion.div
+                          ref={dropdownRef}
+                          key='ModelSelection-dropdown'
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 30 }}
+                          transition={{ type: 'tween', duration: 0.25 }}
+                          className={cn(
+                            isMobile
+                              ? 'fixed left-0 right-0 z-50 bg-zinc-900 border-t border-zinc-700 rounded-t-2xl shadow-lg text-white p-0'
+                              : 'absolute mx-auto my-auto bottom-full bg-zinc-900 border border-zinc-700 rounded-lg shadow-lg z-20 min-w-[600px] text-white',
+                          )}
+                          style={isMobile ? { bottom: 80, maxHeight: '60vh', overflow: 'visible' } : {}}
+                        >
+                          <div className={isMobile ? 'max-h-[60vh] overflow-y-auto' : ''}>
+                            {isMobile ? <ModelSelectionMobile selectedModel={selectedModel} onModelSelect={handleModelSelect} /> : <ModelSelection selectedModel={selectedModel} onModelSelect={handleModelSelect} />}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+                <AutoResizeTextarea
+                  ref={inputRef}
+                  placeholder={randomPlaceholderRef.current}
+                  className="flex-1 bg-transparent border-0 focus:ring-0 text-white placeholder:text-gray-400 py-2 px-3 resize-none text-base tracking-normal"
+                  value={message}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  disabled={isLoading}
+                  maxHeight={160}
+                />
+                <div className='flex flex-col justify-end'>
+                  <Button
+                    type='submit'
+                    className='bg-white hover:bg-gray-200 text-black rounded-full h-10 w-10 p-0 flex items-center justify-center'
+                    disabled={isLoading}
+                  >
+                    <ArrowUp className='h-5 w-5' />
                   </Button>
-                  <AnimatePresence>
-                    {showOptions && (
-                      <motion.div
-                        key='ModelSelection-dropdown'
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 30 }}
-                        transition={{ type: 'tween', duration: 0.25 }}
-                        className={cn(
-                          isMobile
-                            ? 'fixed left-0 right-0 z-50 bg-zinc-900 border-t border-zinc-700 rounded-t-2xl shadow-lg text-white p-0'
-                            : 'absolute mx-auto my-auto bottom-full bg-zinc-900 border border-zinc-700 rounded-lg shadow-lg z-20 min-w-[600px] text-white',
-                        )}
-                        style={isMobile ? { bottom: 80, maxHeight: '60vh', overflow: 'visible' } : {}}
-                      >
-                        <div className={isMobile ? 'max-h-[60vh] overflow-y-auto' : ''}>
-                          {isMobile ? <ModelSelectionMobile /> : <ModelSelection />}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               </div>
-              <AutoResizeTextarea
-                ref={inputRef}
-                placeholder={randomPlaceholderRef.current}
-                className="flex-1 bg-transparent border-0 focus:ring-0 text-white placeholder:text-gray-400 py-2 px-3 resize-none text-base tracking-normal"
-                value={message}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                disabled={isLoading}
-                maxHeight={160}
-              />
-              <div className='flex flex-col justify-end'>
-                <Button
-                  type='submit'
-                  className='bg-white hover:bg-gray-200 text-black rounded-full h-10 w-10 p-0 flex items-center justify-center'
-                  disabled={isLoading}
-                >
-                  <ArrowUp className='h-5 w-5' />
-                </Button>
+            </div>
+            {isDragging && (
+              <div className='absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-none z-10'>
+                <p className='text-white font-medium tracking-normal text-lg'>Drop files here</p>
               </div>
-            </div>
+            )}
           </div>
-          {isDragging && (
-            <div className='absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-none z-10'>
-              <p className='text-white font-medium tracking-normal text-lg'>Drop images here</p>
-            </div>
-          )}
         </div>
         {error && <div className='mt-2 text-red-400 text-sm tracking-normal'>{error}</div>}
         {tooltip.visible && tooltip.text && !isMobile && (
-          <div
-            style={{
-              position: 'fixed',
-              left: tooltip.x,
-              top: tooltip.y - 36,
-              transform: 'translateX(-50%)',
-              zIndex: 50,
-              pointerEvents: 'none',
-            }}
-            className='px-2 py-1 rounded bg-zinc-900 text-white text-xs shadow-lg border border-zinc-700 select-none'
-          >
-            {tooltip.text}
-          </div>
+          <Tooltip x={tooltip.x} y={tooltip.y - 36} text={tooltip.text} />
         )}
       </form>
     </UIForm>
@@ -328,6 +371,8 @@ MessageInput.propTypes = {
   onOpenOptions: PropTypes.func.isRequired,
   message: PropTypes.string.isRequired,
   setMessage: PropTypes.func.isRequired,
+  selectedModel: PropTypes.string.isRequired,
+  setSelectedModel: PropTypes.func.isRequired,
 };
 
 export default MessageInput; 

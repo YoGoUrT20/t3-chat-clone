@@ -6,17 +6,17 @@ function Button({ icon, children, className = '', rounded = false, ...props }) {
       className={`
         inline-flex items-center justify-center gap-2
         h-9 px-4 py-2 text-sm font-semibold
-        border border-[#49152F]
-        text-[#EFBED9] shadow-sm
+        border-2 border-blue-400/70
+        text-blue-50 shadow-lg
         ${rounded ? 'rounded-full' : 'rounded-lg'} select-none
-        bg-gradient-to-r from-pink-700/90 via-pink-700/70 to-pink-700/90
+        bg-gradient-to-r from-blue-400/80 via-blue-500/80 to-blue-600/80
         transition-all duration-300 ease-in-out
-        hover:from-[#78173F] hover:via-[#78173F]/90 hover:to-[#78173F]
-        dark:from-pink-900/30 dark:via-pink-900/20 dark:to-pink-900/30
-        dark:hover:from-[#78173F]/80 dark:hover:via-[#78173F]/70 dark:hover:to-[#78173F]/80
-        dark:active:from-pink-800/50 dark:active:via-pink-800/40 dark:active:to-pink-800/50
+        hover:from-blue-300 hover:via-blue-400/90 hover:to-blue-600
+        focus:ring-2 focus:ring-blue-300/60
+        ring-1 ring-blue-300/30
         ${className}
       `}
+      style={{ boxShadow: '0 0 12px 2px rgba(80,180,255,0.18)' }}
       {...props}
     >
       {icon && <span className="material-icons text-base">{icon}</span>}

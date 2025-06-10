@@ -1,12 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Lightbulb, Key, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { models } from '../models';
-import { capabilityColors, familyIcons } from '../constants';
 import { Button } from './ui/button';
+import styles from './ModelSelection.module.css';
+import ModelCard from './ModelCard';
+import Tooltip from './Tooltip';
 
-function ModelSelection({ items = models, className }) {
+function ModelSelection({ items = models, className, selectedModel, onModelSelect }) {
   // Custom family order
   const familyOrder = ['claude', 'gemini', 'chatgpt', 'deepseek', 'llama', 'grok', 'qwen'];
   const sortByCustomFamilyOrder = (models) => {
@@ -36,11 +37,18 @@ function ModelSelection({ items = models, className }) {
       if (a.isBlocked && !b.isBlocked) return 1;
       return 0;
     });
-  const [hovered, setHovered] = useState(null);
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
   const [nameTooltip, setNameTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
   const iconRefs = useRef({});
   const nameRefs = useRef({});
+  const [search, setSearch] = useState('');
+  const searchInputRef = useRef();
+
+  useEffect(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, []);
 
   const handleMouseEnter = (item) => {
     const ref = iconRefs.current[item.name];
@@ -53,12 +61,10 @@ function ModelSelection({ items = models, className }) {
         text: item.description,
       });
     }
-    setHovered(item.name);
   };
 
   const handleMouseLeave = () => {
     setTooltip({ visible: false, x: 0, y: 0, text: '' });
-    setHovered(null);
   };
 
   const handleNameMouseEnter = (item) => {
@@ -78,36 +84,53 @@ function ModelSelection({ items = models, className }) {
     setNameTooltip({ visible: false, x: 0, y: 0, text: '' });
   };
 
+  const filterModels = (items, search) => {
+    if (!search.trim()) return items;
+    const s = search.trim().toLowerCase();
+    // Sort by how well displayNameV2, displayName, or family matches the search string
+    return [...items].sort((a, b) => {
+      const aName = a.displayNameV2.toLowerCase();
+      const bName = b.displayNameV2.toLowerCase();
+      const aDisplay = a.displayName.toLowerCase();
+      const bDisplay = b.displayName.toLowerCase();
+      const aFamily = a.family ? a.family.toLowerCase() : '';
+      const bFamily = b.family ? b.family.toLowerCase() : '';
+      // Helper to get best match score for a model
+      const getScore = (name, display, family) => {
+        if (name === s || display === s || family === s) return 0;
+        if (name.startsWith(s) || display.startsWith(s) || family.startsWith(s)) return 1;
+        if (name.includes(s) || display.includes(s) || family.includes(s)) return 2;
+        // Lower indexOf is better
+        const idxs = [name.indexOf(s), display.indexOf(s), family.indexOf(s)].filter(idx => idx !== -1);
+        if (idxs.length > 0) return 3 + Math.min(...idxs);
+        // Otherwise, sort by length difference
+        return 100 + Math.abs(name.length - s.length);
+      };
+      const aScore = getScore(aName, aDisplay, aFamily);
+      const bScore = getScore(bName, bDisplay, bFamily);
+      if (aScore !== bScore) return aScore - bScore;
+      // Fallback: shorter length difference is better
+      return Math.abs(aName.length - s.length) - Math.abs(bName.length - s.length);
+    });
+  };
+
+
+  const filteredItems = filterModels(sortedItems, search);
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      // Pick the first unlocked model from filteredItems (sorted by best match)
+      const unlocked = filteredItems.filter(i => !i.isBlocked);
+      if (unlocked.length > 0 && onModelSelect) {
+        onModelSelect(unlocked[0]);
+      }
+    }
+  };
+
   return (
-    <div className={cn('flex justify-center w-full', className)}>
-      <style>{`
-        .ModelSelection-scrollbar::-webkit-scrollbar-thumb {
-          background: #483A44;
-          border-radius: 0;
-          border: none;
-        }
-        .ModelSelection-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-          margin: 0;
-          border: none;
-        }
-        .ModelSelection-scrollbar::-webkit-scrollbar {
-          width: 8px;
-          background: transparent;
-          margin: 0;
-        }
-        .ModelSelection-scrollbar::-webkit-scrollbar-button {
-          display: none;
-          height: 0;
-          width: 0;
-        }
-        /* For Firefox */
-        .ModelSelection-scrollbar {
-          scrollbar-color: #483A44 transparent;
-        }
-      `}</style>
+    <div className={cn('flex justify-center w-full', className, styles.liquidGlassBg)} style={{ position: 'relative' }}>
       <div className='flex flex-col items-center w-full'>
-        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[800px] max-w-[1400px] overflow-y-auto ModelSelection-scrollbar px-4 mt-6'>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[800px] max-w-[1400px] overflow-y-auto ${styles.ModelSelectionScrollbar} px-4 mt-6`}>
           <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2'>
             <div className='backdrop-blur-xl bg-white/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between px-8 py-8 min-h-[120px] pointer-events-auto'>
               <div className='flex flex-col items-start w-full sm:w-auto mb-4 sm:mb-0'>
@@ -120,161 +143,54 @@ function ModelSelection({ items = models, className }) {
               </div>
             </div>
           </div>
-          {sortedItems.map((item) => {
-            const { blockedByKey, blockedByLock, isBlocked } = item;
-            return (
-              <div
-                key={item.name}
-                className={cn(
-                  'flex flex-col',
-                  'bg-white dark:bg-zinc-900/70',
-                  'rounded-lg',
-                  'border border-zinc-100 dark:border-zinc-800',
-                  'hover:border-zinc-200 dark:hover:border-zinc-700',
-                  'transition-all duration-200',
-                  'shadow-sm backdrop-blur-xl',
-                  'p-2',
-                  'min-h-[90px]',
-                  isBlocked && 'relative',
-                )}
-                style={{ fontSize: 13 }}
-              >
-                {isBlocked && (
-                  <div className='absolute inset-0 z-20 flex items-center justify-center pointer-events-auto'>
-                    <div
-                      className='flex flex-col items-center justify-center w-full h-full cursor-pointer'
-                      onMouseEnter={() => {
-                        const ref = iconRefs.current[item.name + '-blocked'];
-                        if (ref) {
-                          const rect = ref.getBoundingClientRect();
-                          setTooltip({
-                            visible: true,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top,
-                            text: blockedByKey
-                              ? 'Add an API key to use this model.'
-                              : blockedByLock
-                                ? 'Buy a subscription to use this model.'
-                                : '',
-                          });
-                        }
-                      }}
-                      onMouseLeave={handleMouseLeave}
-                      ref={el => (iconRefs.current[item.name + '-blocked'] = el)}
-                    >
-                      {blockedByKey ? (
-                        <Key className='w-10 h-10 text-zinc-500 drop-shadow' />
-                      ) : blockedByLock ? (
-                        <Lock className='w-10 h-10 text-zinc-500 drop-shadow' />
-                      ) : null}
-                    </div>
-                  </div>
-                )}
-                <div className={isBlocked ? 'pointer-events-none' : ''}>
-                  <div
-                    className='flex items-center gap-2 mb-1'
-                    style={{ minHeight: 28 }}
-                  >
-                    {item.family && familyIcons[item.family] && (
-                      <img
-                        src={familyIcons[item.family]}
-                        alt={item.family}
-                        className='w-6 h-6 rounded-sm flex-shrink-0'
-                      />
-                    )}
-                    <h3
-                      className='text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate cursor-pointer'
-                      ref={el => (nameRefs.current[item.name] = el)}
-                      onMouseEnter={() => handleNameMouseEnter(item)}
-                      onMouseLeave={handleNameMouseLeave}
-                      tabIndex={0}
-                      aria-label={item.displayName}
-                      style={{ maxWidth: 120 }}
-                    >
-                      {item.displayNameV2}
-                    </h3>
-                  </div>
-                  <div
-                    className='flex flex-wrap gap-1 mb-1 items-center justify-start'
-                    style={{ minHeight: 36, display: 'flex' }}
-                  >
-                    {item.capabilities && item.capabilities.length > 0 ? (
-                      item.capabilities.map((cap) => (
-                        <span
-                          key={cap}
-                          className={cn(
-                            'px-1.5 py-0.5 rounded-full text-[10px] font-medium',
-                            capabilityColors[cap] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
-                          )}
-                        >
-                          {cap}
-                        </span>
-                      ))
-                    ) : (
-                      <span className='text-[10px] text-zinc-400'>No capabilities</span>
-                    )}
-                  </div>
-                  <div className='mt-auto border-t border-zinc-100 dark:border-zinc-800 pt-1 relative'>
-                    <button
-                      className={cn(
-                        'w-full flex items-center justify-center gap-1',
-                        'py-1 px-2',
-                        'text-[10px] font-medium',
-                        'text-zinc-600 dark:text-zinc-400',
-                        'hover:text-zinc-900 dark:hover:text-zinc-100',
-                        'hover:bg-zinc-100 dark:hover:bg-zinc-800/50',
-                        'transition-colors duration-200',
-                        'relative',
-                      )}
-                      ref={el => (iconRefs.current[item.name] = el)}
-                      onMouseEnter={() => item.description && handleMouseEnter(item)}
-                      onMouseLeave={handleMouseLeave}
-                      tabIndex={0}
-                      aria-label={item.description ? 'Show description' : undefined}
-                      style={{ outline: 'none' }}
-                    >
-                      <Lightbulb className='w-3 h-3' />
-                    </button>
-                  </div>
-                </div>
-                {isBlocked && (
-                  <div className='absolute inset-0 z-10 bg-black/40 rounded-lg pointer-events-none'></div>
-                )}
-              </div>
-            );
-          })}
+          <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2 flex justify-start'>
+            <input
+              ref={searchInputRef}
+              type='text'
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder='Search models...'
+              className='w-full max-w-md px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500 text-base mb-2 shadow-sm'
+              aria-label='Search models'
+              autoComplete='off'
+            />
+          </div>
+          {filteredItems.map((item) => (
+            <ModelCard
+              key={item.name}
+              item={item}
+              selectedModel={selectedModel}
+              onModelSelect={onModelSelect}
+              iconRefs={iconRefs}
+              nameRefs={nameRefs}
+              handleNameMouseEnter={handleNameMouseEnter}
+              handleNameMouseLeave={handleNameMouseLeave}
+              handleMouseEnter={handleMouseEnter}
+              handleMouseLeave={handleMouseLeave}
+            />
+          ))}
         </div>
         {tooltip.visible && tooltip.text && createPortal(
-          <span
-            className='z-50 fixed px-3 py-2 rounded bg-black text-zinc-100 text-xs shadow-lg pointer-events-none select-none'
-            style={{
-              left: tooltip.x,
-              top: tooltip.y - 12,
-              transform: 'translate(-50%, -100%)',
-              maxWidth: 250,
-              whiteSpace: 'pre-line',
-            }}
-          >
-            {tooltip.text}
-          </span>,
-          document.body
+          <Tooltip x={tooltip.x} y={tooltip.y - 12} text={tooltip.text} style={{maxWidth: 250, whiteSpace: 'pre-line'}} />, document.body
         )}
         {nameTooltip.visible && nameTooltip.text && createPortal(
-          <span
-            className='z-50 fixed px-3 py-2 rounded bg-black text-zinc-100 text-xs shadow-lg pointer-events-none select-none'
-            style={{
-              left: nameTooltip.x,
-              top: nameTooltip.y - 8,
-              transform: 'translate(-50%, -100%)',
-              maxWidth: 300,
-              whiteSpace: 'pre-line',
-            }}
-          >
-            {nameTooltip.text}
-          </span>,
-          document.body
+          <Tooltip x={nameTooltip.x} y={nameTooltip.y - 8} text={nameTooltip.text} style={{maxWidth: 300, whiteSpace: 'pre-line'}} />, document.body
         )}
       </div>
+      {/* Gradient overlay at the bottom */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: '140px',
+          pointerEvents: 'none',
+          zIndex: 30,
+          background: 'linear-gradient(to top, rgba(24,24,27,0.55) 20%, rgba(24,24,27,0.25) 60%, rgba(24,24,27,0.0) 100%)',
+        }}
+      />
     </div>
   );
 }
