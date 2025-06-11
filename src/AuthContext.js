@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from './firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
 
 const AuthContext = createContext();
 
@@ -16,26 +17,34 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
       setLoading(false);
-      // Update localStorage with the latest user
       if (firebaseUser) {
-        localStorage.setItem('user', JSON.stringify(firebaseUser));
-        // Firestore logic for API key
+        // Firestore logic for API key and public_id
         const db = getFirestore();
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userSnap = await getDoc(userRef);
         let key = null;
-        if (userSnap.exists() && userSnap.data().apiKey) {
-          key = userSnap.data().apiKey;
-        } else {
-          // Generate a random API key
-          key = [...Array(48)].map(() => Math.random().toString(36)[2]).join('');
-          await setDoc(userRef, { apiKey: key }, { merge: true });
+        let publicId = null;
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          key = data.apiKey;
+          publicId = data.public_id;
         }
+        if (!key) {
+          key = [...Array(48)].map(() => Math.random().toString(36)[2]).join('');
+        }
+        if (!publicId) {
+          publicId = uuidv4();
+        }
+        await setDoc(userRef, { apiKey: key, public_id: publicId }, { merge: true });
         setApiKey(key);
         localStorage.setItem('apiKey', key);
+        // Merge public_id into user object for context
+        const mergedUser = { ...firebaseUser, public_id: publicId };
+        setUser(mergedUser);
+        localStorage.setItem('user', JSON.stringify(mergedUser));
       } else {
+        setUser(null);
         localStorage.removeItem('user');
         localStorage.removeItem('apiKey');
         setApiKey(null);

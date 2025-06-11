@@ -130,8 +130,8 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
   return (
     <div className={cn('flex justify-center w-full', className, styles.liquidGlassBg)} style={{ position: 'relative' }}>
       <div className='flex flex-col items-center w-full'>
-        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[800px] max-w-[1400px] overflow-y-auto ${styles.ModelSelectionScrollbar} px-4 mt-6`}>
-          <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2'>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[70vh] max-w-[1400px] overflow-y-auto ${styles.ModelSelectionScrollbar} px-4 mt-6`}>
+      <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2'>
             <div className='backdrop-blur-xl bg-white/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between px-8 py-8 min-h-[120px] pointer-events-auto'>
               <div className='flex flex-col items-start w-full sm:w-auto mb-4 sm:mb-0'>
                 <span className='text-2xl font-bold text-zinc-900 dark:text-zinc-100'>Subscription</span>

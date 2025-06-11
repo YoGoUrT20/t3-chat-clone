@@ -447,4 +447,4 @@ export const models = [
     freeAccess: false,
     openRouterName: 'openai/gpt-4.5-preview',
   },
-]; 
+];

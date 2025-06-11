@@ -9,6 +9,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import SecurityPolicy from './components/SecurityPolicy';
 import SettingsSubscriptionPage from './components/SettingsSubscriptionPage';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 function AppWithRouter() {
   const [resetKey, setResetKey] = useState(0);
@@ -42,6 +43,9 @@ function AppWithRouter() {
     }
   }, [location]);
 
+  // Determine if chat is open
+  const isChatOpen = location.pathname.startsWith('/chat/');
+
   return (
     <AuthProvider>
       <Toaster />
@@ -52,7 +56,12 @@ function AppWithRouter() {
         <Route path="/security-policy" element={<SecurityPolicy />} />
         <Route path="/settings" element={<SettingsSubscriptionPage />} />
         <Route path="/chat/:id" element={
-          <div className="main-bg text-white flex h-screen overflow-hidden">
+          <motion.div
+            className="main-bg text-white flex h-screen overflow-hidden"
+            initial={{ marginTop: 15 }}
+            animate={{ marginTop: isChatOpen ? 0 : 15 }}
+            transition={{ duration: 0.4, ease: 'easeInOut' }}
+          >
             <style>{`
               .animate-scale-in {
                 animation: scaleIn 0.3s ease-out;
@@ -64,10 +73,15 @@ function AppWithRouter() {
             `}</style>
             <SidePanel visible={showSidebar} setVisible={setShowSidebar} />
             <MainContent key={resetKey} showSidebar={showSidebar} setVisible={setShowSidebar} />
-          </div>
+          </motion.div>
         } />
         <Route path="/" element={
-          <div className="main-bg text-white flex h-screen overflow-hidden">
+          <motion.div
+            className="main-bg text-white flex h-screen overflow-hidden"
+            initial={{ marginTop: 15 }}
+            animate={{ marginTop: isChatOpen ? 0 : 15 }}
+            transition={{ duration: 0.4, ease: 'easeInOut' }}
+          >
             <style>{`
               .animate-scale-in {
                 animation: scaleIn 0.3s ease-out;
@@ -79,7 +93,7 @@ function AppWithRouter() {
             `}</style>
             <SidePanel visible={showSidebar} setVisible={setShowSidebar} />
             <MainContent key={resetKey} showSidebar={showSidebar} setVisible={setShowSidebar} />
-          </div>
+          </motion.div>
         } />
       </Routes>
     </AuthProvider>

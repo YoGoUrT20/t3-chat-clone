@@ -36,9 +36,13 @@ const buttonVariants = cva(
 const Button = React.forwardRef(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    let computedClassName = cn(buttonVariants({ variant, size, className }))
+    if (computedClassName.includes('rounded-full') || computedClassName.includes('liquid-glass-circle-btn')) {
+      computedClassName = computedClassName.replace(/rounded-md/g, '')
+    }
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={computedClassName}
         ref={ref}
         {...props}
       />

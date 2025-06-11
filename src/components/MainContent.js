@@ -43,7 +43,8 @@ function MainContent({ showSidebar, setShowSidebar }) {
             (data.messages || []).map((msg, i) => ({
               id: i,
               sender: msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'llm' : msg.role),
-              text: msg.content || msg.text || ''
+              text: msg.content || msg.text || '',
+              model: msg.model || data.model || null
             }))
           );
           setFirstMessageSent(true);
@@ -72,10 +73,32 @@ function MainContent({ showSidebar, setShowSidebar }) {
   };
 
   const handleSubmit = async (data, event, model) => {
+    if (user) {
+      const db = getFirestore()
+      const userRef = doc(db, 'users', user.uid)
+      const snap = await getDoc(userRef)
+      let messagesLeft = 20
+      let resetAt = null
+      const now = Date.now()
+      if (snap.exists()) {
+        const d = snap.data()
+        messagesLeft = typeof d.messagesLeft === 'number' ? d.messagesLeft : 20
+        resetAt = typeof d.resetAt === 'number' ? d.resetAt : null
+      }
+      if (!resetAt || now > resetAt) {
+        messagesLeft = 20
+        resetAt = now + 8 * 60 * 60 * 1000
+      }
+      if (messagesLeft <= 0) {
+        toast.error('Message limit reached. Wait for reset.')
+        return
+      }
+      await updateDoc(userRef, { messagesLeft: messagesLeft - 1, resetAt })
+    }
     setFirstMessageSent(true);
     setMessage('');
     if (model && model.family) setLastUsedModelFamily(model.family);
-    const userMsg = { role: 'user', content: data.prompt };
+    const userMsg = { role: 'user', content: data.prompt, model: model?.openRouterName || 'openai/gpt-4o' };
     const db = getFirestore();
     const modelObj = model || selectedModel;
     let convId = conversationId;
@@ -175,7 +198,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
       // Save LLM response to conversation
       const convRef = doc(db, 'conversations', convId);
       await updateDoc(convRef, {
-        messages: arrayUnion({ role: 'assistant', content: llmText }),
+        messages: arrayUnion({ role: 'assistant', content: llmText, model: modelObj?.openRouterName || 'openai/gpt-4o' }),
         lastUsed: Timestamp.now(),
       });
       setLoading(false);
@@ -187,7 +210,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
         lastUsed: Timestamp.fromDate(new Date()).toDate().toISOString(),
         model: modelObj?.openRouterName || 'openai/gpt-4o',
         modelDisplayName: modelObj?.displayName || 'GPT-4o',
-        messages: [...convoMessages, { role: 'assistant', content: llmText }],
+        messages: [...convoMessages, { role: 'assistant', content: llmText, model: modelObj?.openRouterName || 'openai/gpt-4o' }],
       };
       localStorage.setItem('conversations', JSON.stringify(cached));
     } catch (err) {
@@ -254,7 +277,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
       // Insert a placeholder for the rerolled message
       setChatMessages(msgs => {
         const newMsgs = [...msgs];
-        newMsgs.splice(llmMsgIdx, 0, { ...llmMsg, text: '', model: modelObj.name });
+        newMsgs.splice(llmMsgIdx, 0, { ...llmMsg, text: '', model: modelObj.openRouterName });
         return newMsgs;
       });
       const processChunk = (chunk) => {
@@ -269,7 +292,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
                   const idx = msgs.findIndex(m => m.id === llmMsg.id);
                   if (idx === -1) return msgs;
                   const newMsgs = [...msgs];
-                  newMsgs[idx] = { ...newMsgs[idx], text: llmText, model: modelObj.name };
+                  newMsgs[idx] = { ...newMsgs[idx], text: llmText, model: modelObj.openRouterName };
                   return newMsgs;
                 });
               }
@@ -308,7 +331,6 @@ function MainContent({ showSidebar, setShowSidebar }) {
         style={{
           border: '1.5px solid rgba(80, 140, 255, 0.25)',
           borderRadius: '0.75rem',
-          marginTop: '15px',
           background: 'linear-gradient(135deg, #23232a 0%, #18181b 100%)',
           boxShadow: '0 4px 32px 0 rgba(80,140,255,0.08)',
           animation: 'mainAreaGlow 3s ease-in-out infinite',
@@ -399,7 +421,16 @@ function MainContent({ showSidebar, setShowSidebar }) {
           </div>
         )}
 
-        <MessageInput message={message} setMessage={setMessage} onFirstMessageSent={() => setFirstMessageSent(true)} onOpenOptions={() => { }} onSubmit={handleSubmit} isLoading={loading} selectedModel={selectedModel} setSelectedModel={setSelectedModel} />
+        <MessageInput
+          message={message}
+          setMessage={setMessage}
+          onFirstMessageSent={() => setFirstMessageSent(true)}
+          onOpenOptions={() => { }}
+          onSubmit={handleSubmit}
+          isLoading={loading}
+          selectedModel={selectedModel}
+          setSelectedModel={setSelectedModel}
+        />
       </motion.main>
     </>
   );

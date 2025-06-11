@@ -30,6 +30,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
   const dropdownRef = useRef(null);
   const toggleButtonRef = useRef(null);
+  const prevIsLoading = useRef(isLoading);
 
   // Pick a random placeholder only once per mount
   const randomPlaceholderRef = useRef(MESSAGE_PLACEHOLDERS[Math.floor(Math.random() * MESSAGE_PLACEHOLDERS.length)]);
@@ -179,11 +180,9 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
   }, [addFiles]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        formRef.current?.requestSubmit();
-      }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      formRef.current?.requestSubmit();
     }
   };
 
@@ -213,7 +212,12 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
       setPreviewFiles([]);
       form.setValue('images', []);
     }
-    setTimeout(() => setShowOptions(false), 200);
+    setTimeout(() => {
+      setShowOptions(false);
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 200);
   };
 
   useEffect(() => {
@@ -230,6 +234,13 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showOptions, isMobile]);
+
+  useEffect(() => {
+    if (prevIsLoading.current && !isLoading) {
+      if (inputRef.current) inputRef.current.focus();
+    }
+    prevIsLoading.current = isLoading;
+  }, [isLoading]);
 
   return (
     <UIForm {...form}>
@@ -261,7 +272,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
             <ImageUploadArea previewFiles={previewFiles} onRemoveFile={removeFile} isLoading={isLoading || !modelSupportsAttachments} />
             <div className='px-2 py-1.5'>
               <div className='flex items-end'>
-                <div className='flex flex-row space-x-0'>
+                <div className='flex flex-row gap-x-2'>
                   <input
                     type='file'
                     ref={fileInputRef}
@@ -281,7 +292,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                       variant='ghost'
                       size='icon'
                       onClick={modelSupportsAttachments ? triggerFileInput : undefined}
-                      className='text-gray-400 hover:text-white hover:bg-transparent rounded-full h-10 w-10 ml-0'
+                      className='liquid-glass-circle-btn'
                       disabled={isLoading || !modelSupportsAttachments}
                     >
                       <Paperclip className='h-5 w-5' />
@@ -297,7 +308,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                         setShowOptions((prev) => !prev);
                         onOpenOptions();
                       }}
-                      className='text-gray-400 hover:text-white hover:bg-transparent rounded-full h-10 w-10 ml-0'
+                      className='liquid-glass-circle-btn'
                       disabled={isLoading}
                       onMouseEnter={e => showTooltip(e, 'Model selection (Ctrl+M)')}
                       onMouseLeave={hideTooltip}

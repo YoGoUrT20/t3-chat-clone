@@ -41,7 +41,11 @@ function SidePanel({ onReset, visible, setVisible }) {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setConversations([]);
+      setLoadingConvos(false);
+      return;
+    }
     // Load from localStorage first
     const cached = JSON.parse(localStorage.getItem('conversations') || '{}');
     const cachedConvos = Object.values(cached).filter(c => c.userId === user.uid);
@@ -110,9 +114,14 @@ function SidePanel({ onReset, visible, setVisible }) {
 
   // Filtered conversations by search
   const filteredConvos = searchValue.trim()
-    ? conversations.filter(conv =>
-      (conv.messages?.[0]?.content || '').toLowerCase().includes(searchValue.trim().toLowerCase())
-    )
+    ? conversations.filter(conv => {
+        const search = searchValue.trim().toLowerCase();
+        return (
+          (conv.name || '').toLowerCase().includes(search) ||
+          (conv.modelDisplayName || '').toLowerCase().includes(search) ||
+          (conv.messages?.[0]?.content || '').toLowerCase().includes(search)
+        );
+      })
     : conversations.slice(0, 100);
   const hasResults = filteredConvos.length > 0;
 
@@ -190,7 +199,7 @@ function SidePanel({ onReset, visible, setVisible }) {
             <div className='h-0.5 w-7/12 bg-gray-200 dark:bg-[#28242A] my-1 mx-auto' />
           </div>
           <div className='space-y-6 mt-4'>
-            {loadingConvos ? (
+            {!user ? null : loadingConvos ? (
               <div className='text-center text-gray-500 dark:text-gray-400 py-8'>Loading...</div>
             ) : hasResults ? (
               <>
@@ -244,34 +253,37 @@ function SidePanel({ onReset, visible, setVisible }) {
             </SidebarMenu>
           </SidebarGroup>
         </SidebarFooter>
-        <div className='mt-auto pb-4 px-2'>
+        <div className='mt-auto pb-4 px-2' style={{ marginBottom: '20px' }}>
           {user ? (
             <Button
               variant='ghost'
-              className='flex items-center gap-3 p-2 justify-start pl-2 hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              className='flex items-center gap-3 py-3 w-full justify-start hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              style={{paddingLeft: 0, paddingRight: 0, minHeight: 52}}
               onClick={() => navigate('/settings')}
             >
               <img
                 alt={user.displayName}
-                className='w-8 h-8 rounded-full border border-gray-300 dark:border-[#3B3337]'
+                className='w-10 h-10 rounded-full border border-gray-300 dark:border-[#3B3337] ml-2'
                 src={user.photoURL}
+                onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/default-avatar.png'; }}
               />
-              <div className='flex flex-col items-start'>
-                <span className='font-medium text-sm text-gray-900 dark:text-white'>{user.displayName}</span>
+              <div className='flex flex-col items-start ml-2 justify-center'>
+                <span className='font-medium text-base text-gray-900 dark:text-white'>{user.displayName}</span>
                 <span className='text-xs text-gray-500 dark:text-gray-400'>Free</span>
               </div>
             </Button>
           ) : loading ? null : (
             <Button
               variant='ghost'
-              className='flex items-center gap-3 p-2 justify-start pl-2 hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              className='flex items-center gap-3 py-3 w-full justify-start hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              style={{paddingLeft: 0, paddingRight: 0, minHeight: 52}}
               onClick={() => navigate('/auth')}
             >
-              <span className='w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#19171D]'>
-                <LogIn size={16} className='text-gray-500 dark:text-gray-300' />
+              <span className='w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#19171D] ml-2'>
+                <LogIn size={18} className='text-gray-500 dark:text-gray-300' />
               </span>
-              <div className='flex flex-col items-start'>
-                <span className='font-medium text-sm text-gray-900 dark:text-gray-300'>Login</span>
+              <div className='flex flex-col items-start ml-2 justify-center'>
+                <span className='font-medium text-base text-gray-900 dark:text-gray-300'>Login</span>
               </div>
             </Button>
           )}

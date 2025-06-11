@@ -1,13 +1,14 @@
 import React from 'react';
 
-function LiquidGlassButton({ icon, text, onClick, selected }) {
+function LiquidGlassButton({ icon, text, onClick, selected, variant = 'pill', style = {} }) {
+  const isRect = variant === 'rect';
   return (
     <button
-      className={`liquid-glass-btn relative overflow-hidden group flex items-center justify-center space-x-1 text-sm font-bold rounded-full ${selected ? 'selected' : ''}`}
-      style={{ height: '36px', width: '97px', color: selected ? '#23232a' : '#E0E8FF', background: selected ? '#F5FBFF' : undefined }}
+      className={`liquid-glass-btn relative overflow-hidden group flex items-center justify-center space-x-1 text-sm font-bold ${isRect ? 'rounded-lg' : 'rounded-full'} ${selected ? 'selected' : ''}`}
+      style={{ height: isRect ? '40px' : '36px', width: isRect ? 'auto' : '97px', minWidth: isRect ? '110px' : undefined, padding: isRect ? '0 18px' : undefined, color: selected ? '#23232a' : '#E0E8FF', background: selected ? '#F5FBFF' : undefined, ...style }}
       onClick={onClick}
     >
-      {icon && <span className="relative z-10">{icon}</span>}
+      {icon && <span className="relative z-10" style={{ color: 'inherit', display: 'flex', alignItems: 'center' }}>{icon}</span>}
       <span className="relative z-10">{text}</span>
       <style>{`
         .liquid-glass-btn {
@@ -48,6 +49,9 @@ function LiquidGlassButton({ icon, text, onClick, selected }) {
           mask-composite: exclude;
           -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           -webkit-mask-composite: source-out;
+        }
+        .liquid-glass-btn.rounded-lg::before {
+          border-radius: 8px;
         }
         .liquid-glass-btn:hover {
           transform: translateY(-2px);

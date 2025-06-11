@@ -19,7 +19,6 @@ function Chat({ modelFamily, messages, onReroll }) {
   const [displayedMessages, setDisplayedMessages] = useState([]);
   const [visibleCount, setVisibleCount] = useState(2);
   const revealTimeouts = useRef([]);
-  const prevMessagesRef = useRef(messages);
 
   // Subject to change
   const familyBgColors = {
@@ -55,37 +54,21 @@ function Chat({ modelFamily, messages, onReroll }) {
     setTooltip({ visible: false, x: 0, y: 0, text: '' });
   };
 
-  // Only reset visibleCount and displayedMessages if the conversation changes
   useEffect(() => {
-    if (prevMessagesRef.current !== messages) {
+    revealTimeouts.current.forEach(clearTimeout);
+    revealTimeouts.current = [];
+    if (!messages || messages.length === 0) {
+      setDisplayedMessages([]);
+      setVisibleCount(2);
+      return;
+    }
+    const localMessages = [...messages];
+    setVisibleCount(localMessages.length);
+    setDisplayedMessages(localMessages);
+    return () => {
       revealTimeouts.current.forEach(clearTimeout);
       revealTimeouts.current = [];
-      if (!messages || messages.length === 0) {
-        setDisplayedMessages([]);
-        setVisibleCount(2);
-        prevMessagesRef.current = messages;
-        return;
-      }
-      const localMessages = [...messages];
-      let i = localMessages.length - 2;
-      if (i < 0) i = 0;
-      setVisibleCount(localMessages.length - i);
-      setDisplayedMessages(localMessages.slice(i));
-      let revealIdx = i;
-      function revealNext() {
-        setDisplayedMessages(localMessages.slice(revealIdx, localMessages.length));
-        revealIdx++;
-        if (revealIdx < localMessages.length) {
-          revealTimeouts.current.push(setTimeout(revealNext, 40));
-        }
-      }
-      revealNext();
-      prevMessagesRef.current = messages;
-      return () => {
-        revealTimeouts.current.forEach(clearTimeout);
-        revealTimeouts.current = [];
-      };
-    }
+    };
   }, [messages]);
 
   // Scroll handler to load more messages when scrolled to top
@@ -105,13 +88,6 @@ function Chat({ modelFamily, messages, onReroll }) {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [messages, displayedMessages.length]);
 
-  // When new messages are appended, update displayedMessages if needed
-  useEffect(() => {
-    if (messages.length > displayedMessages.length) {
-      setDisplayedMessages(messages.slice(messages.length - visibleCount));
-    }
-  }, [messages, displayedMessages.length, visibleCount]);
-
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'auto' });
@@ -125,7 +101,7 @@ function Chat({ modelFamily, messages, onReroll }) {
         className='flex flex-col gap-4 w-full max-w-2xl mx-auto py-8 px-2'
       >
         <AnimatePresence initial={false}>
-          {displayedMessages.filter(Boolean).map((msg) => (
+          {displayedMessages.filter(Boolean).map((msg, idx, arr) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 10 }}
@@ -140,7 +116,7 @@ function Chat({ modelFamily, messages, onReroll }) {
                     <span className='bg-[#2A222E] p-2 rounded-full'><Bot size={20} className='text-[#BFB3CB]' /></span>
                   </div>
                 )}
-                <div className={`max-w-[70%] px-4 py-2 rounded-xl text-base ${msg.sender === 'user' ? 'bg-[#4D1F39] text-[#F4E9EE] rounded-br-none' : `${llmBg} rounded-bl-none`}`}>
+                <div className={`max-w-[70%] px-4 py-2 rounded-xl text-base ${msg.sender === 'user' ? 'bg-[#4D1F39] text-[#F4E9EE] rounded-br-none' : `${llmBg} rounded-bl-none`}`} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                   <ReactMarkdown
                     rehypePlugins={[rehypeHighlight]}
                     components={{
@@ -150,7 +126,7 @@ function Chat({ modelFamily, messages, onReroll }) {
                         }
                         const codeString = String(children).trim();
                         const lineCount = codeString.split('\n').length;
-                        const buttonClass = lineCount === 2 // needs different possition bcause of specific language highlight
+                        const buttonClass = lineCount === 2
                           ? 'absolute top-6 right-4 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100'
                           : 'absolute top-3 right-2 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100';
                         return (
@@ -210,6 +186,15 @@ function Chat({ modelFamily, messages, onReroll }) {
                   {tooltip.visible && tooltip.text && (
                     <Tooltip x={tooltip.x} y={tooltip.y} text={tooltip.text} />
                   )}
+                </div>
+              )}
+              {/* Error message if last message is user and no LLM response follows */}
+              {msg.sender === 'user' && idx === arr.length - 1 && (!arr.some((m, i) => i > idx && m.sender === 'llm')) && (
+                <div className='flex w-full justify-end mt-2'>
+                  <div className='flex items-center gap-2 bg-[#3B232B] text-[#F9B4D0] px-4 py-2 rounded-xl max-w-[70%]'>
+                    <RefreshCw size={18} className='text-[#F9B4D0]' />
+                    <span>Request was unsuccessful. Please try again.</span>
+                  </div>
                 </div>
               )}
             </motion.div>
