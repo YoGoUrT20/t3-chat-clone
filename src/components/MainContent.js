@@ -25,6 +25,11 @@ function MainContent({ showSidebar, setShowSidebar }) {
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [branches, setBranches] = useState({});
+  const [selectedBranchId, setSelectedBranchId] = useState('root');
+  const [branchLoading, setBranchLoading] = useState(true);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isTemporaryChat, setIsTemporaryChat] = useState(false);
 
   useEffect(() => {
     setMessage('');
@@ -68,11 +73,129 @@ function MainContent({ showSidebar, setShowSidebar }) {
     }
   }, [id]);
 
+  useEffect(() => {
+    if (user && !id) {
+      let defaultModelName = user.defaultModel;
+      if (!defaultModelName) {
+        // Try to get from localStorage if not present in user
+        defaultModelName = localStorage.getItem('default_model');
+      }
+      const model = defaultModelName ? models.find(m => m.name === defaultModelName) : null;
+      setSelectedModel(model || models.find(m => m.name === 'deepseek-v3-0324'));
+    }
+  }, [user, id]);
+
   const handleQuestionClick = (question) => {
     setMessage(question);
   };
 
+  const handleBranchesChange = (newBranches, newSelectedBranchId) => {
+    setBranches(newBranches);
+    setSelectedBranchId(newSelectedBranchId);
+  };
+
+  const handleToggleTemporaryChat = () => {
+    if (isTemporaryChat) {
+      setIsTemporaryChat(false);
+      setFirstMessageSent(false);
+      setChatMessages([]);
+      setConversationId(null);
+      setBranches({});
+      setSelectedBranchId('root');
+      setBranchLoading(false);
+    } else {
+      setIsTemporaryChat(true);
+      setFirstMessageSent(false);
+      setChatMessages([]);
+      setConversationId(null);
+      setBranches({});
+      setSelectedBranchId('root');
+      setBranchLoading(false);
+    }
+  };
+
   const handleSubmit = async (data, event, model) => {
+    if (isTemporaryChat) {
+      setFirstMessageSent(true);
+      setMessage('');
+      if (model && model.family) setLastUsedModelFamily(model.family);
+      const userMsg = { role: 'user', content: data.prompt, model: model?.openRouterName || 'openai/gpt-4o' };
+      const modelObj = model || selectedModel;
+      const newMessages = [...chatMessages, { id: Date.now(), sender: 'user', text: data.prompt }];
+      setChatMessages(newMessages);
+      setLoading(true);
+      setIsThinking(false);
+      const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
+      const apiKey = localStorage.getItem('apiKey') || '';
+      try {
+        const res = await fetch(`${process.env.REACT_APP_FUNCTIONS_URL}/llmStream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+          body: JSON.stringify({ model: modelName, messages: [userMsg] }),
+        });
+        if (res.status === 429) {
+          try {
+            const data = await res.json();
+            if (data && data.error === 'rate_limit') {
+              toast.error(data.message, { icon: <Sparkles size={18} /> });
+              setIsThinking(false);
+              setLoading(false);
+              return;
+            }
+          } catch {}
+        }
+        if (!res.body) throw new Error('No response body');
+        const reader = res.body.getReader();
+        setIsThinking(false);
+        const processChunk = (chunk, llmTextRef) => {
+          chunk.split('\n').forEach(function processPart(part) {
+            const trimmed = part.trim();
+            if (!trimmed) return;
+            if (trimmed.startsWith(':')) {
+              if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
+              return;
+            }
+            if (trimmed.startsWith('data:')) {
+              const dataStr = trimmed.slice(5).trim();
+              if (dataStr === '[DONE]') return;
+              try {
+                const json = JSON.parse(dataStr);
+                const text =
+                  (json.reasoning) ||
+                  (json.content) ||
+                  (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
+                if (text) {
+                  llmTextRef.current += text;
+                  setIsThinking(false);
+                  setChatMessages(msgs => {
+                    const last = msgs[msgs.length - 1];
+                    if (last && last.sender === 'llm') {
+                      return [...msgs.slice(0, -1), { ...last, text: llmTextRef.current }];
+                    } else {
+                      return [...msgs, { id: Date.now() + 1, sender: 'llm', text: llmTextRef.current }];
+                    }
+                  });
+                }
+              } catch {}
+            }
+          });
+        };
+        const llmTextRef = { current: '' };
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = new TextDecoder().decode(value);
+          processChunk(chunk, llmTextRef);
+        }
+        setIsThinking(false);
+        setLoading(false);
+      } catch (err) {
+        setChatMessages(msgs => [...msgs, { id: Date.now() + 2, sender: 'llm', text: 'Error: ' + (err.message || 'Unknown error') }]);
+        setIsThinking(false);
+        setLoading(false);
+      }
+      return;
+    }
     if (user) {
       const db = getFirestore()
       const userRef = doc(db, 'users', user.uid)
@@ -104,6 +227,97 @@ function MainContent({ showSidebar, setShowSidebar }) {
     let convId = conversationId;
     const FUNCTIONS_URL = process.env.REACT_APP_FUNCTIONS_URL;
 
+    if (selectedBranchId && selectedBranchId !== 'root' && convId) {
+      // Add message to branch
+      const apiKey = localStorage.getItem('apiKey') || '';
+      const res = await fetch(`${FUNCTIONS_URL}/addMessageToBranch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+        body: JSON.stringify({ chatid: convId, branchId: selectedBranchId, message: userMsg }),
+      });
+      if (!res.ok) {
+        toast.error('Failed to add message to branch');
+        return;
+      }
+      const dataBranch = await res.json();
+      setBranches(prev => ({ ...prev, [selectedBranchId]: dataBranch.branch }));
+      setMessage('');
+      setFirstMessageSent(true);
+      setLoading(true);
+      setIsThinking(false);
+      // Now stream LLM response for this branch
+      let branchMessages = dataBranch.branch.messages || [];
+      branchMessages = [...branchMessages, userMsg];
+      const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
+      const apiKey2 = localStorage.getItem('apiKey') || '';
+      const res2 = await fetch(`${FUNCTIONS_URL}/llmStream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey2 },
+        body: JSON.stringify({ model: modelName, messages: branchMessages }),
+      });
+      if (res2.status === 429) {
+        try {
+          const data = await res2.json();
+          if (data && data.error === 'rate_limit') {
+            toast.error(data.message, { icon: <Sparkles size={18} /> });
+            setIsThinking(false);
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
+      if (!res2.body) throw new Error('No response body');
+      const reader = res2.body.getReader();
+      setIsThinking(false);
+      const processBranchChunk = (chunk, llmTextRef) => {
+        chunk.split('\n').forEach(function processPart(part) {
+          const trimmed = part.trim();
+          if (!trimmed) return;
+          if (trimmed.startsWith(':')) {
+            if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
+            return;
+          }
+          if (trimmed.startsWith('data:')) {
+            const dataStr = trimmed.slice(5).trim();
+            if (dataStr === '[DONE]') return;
+            try {
+              const json = JSON.parse(dataStr);
+              const text =
+                (json.reasoning) ||
+                (json.content) ||
+                (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
+              if (text) {
+                llmTextRef.current += text;
+                setIsThinking(false);
+                setBranches(prev => {
+                  const updated = { ...prev };
+                  if (updated[selectedBranchId]) {
+                    const msgs = updated[selectedBranchId].messages || [];
+                    if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
+                      msgs[msgs.length - 1].content = llmTextRef.current;
+                    } else {
+                      msgs.push({ role: 'assistant', content: llmTextRef.current, model: modelObj?.openRouterName || 'openai/gpt-4o' });
+                    }
+                    updated[selectedBranchId] = { ...updated[selectedBranchId], messages: [...msgs] };
+                  }
+                  return updated;
+                });
+              }
+            } catch {}
+          }
+        });
+      };
+      const llmTextBranchRef = { current: '' };
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = new TextDecoder().decode(value);
+        processBranchChunk(chunk, llmTextBranchRef);
+      }
+      setIsThinking(false);
+      setLoading(false);
+      return;
+    }
     if (!convId) {
       // Create new conversation
       const convRef = await addDoc(collection(db, 'conversations'), {
@@ -146,11 +360,11 @@ function MainContent({ showSidebar, setShowSidebar }) {
     const newMessages = [...chatMessages, { id: Date.now(), sender: 'user', text: data.prompt }];
     setChatMessages(newMessages);
     setLoading(true);
+    setIsThinking(false);
     const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
     abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    // Get full conversation history
     let convoMessages = [userMsg];
     if (convId) {
       const convSnap = await getDoc(doc(db, 'conversations', convId));
@@ -165,40 +379,72 @@ function MainContent({ showSidebar, setShowSidebar }) {
         body: JSON.stringify({ model: modelName, messages: convoMessages }),
         signal: controller.signal,
       });
+      if (res.status === 429) {
+        try {
+          const data = await res.json();
+          if (data && data.error === 'rate_limit') {
+            toast.error(data.message, { icon: <Sparkles size={18} /> });
+            setIsThinking(false);
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
+      // Temporary fix for 500 error
+      if (res.status === 500) {
+        toast.error('We ran out of free quota. :(');
+        setIsThinking(false);
+        setLoading(false);
+        return;
+      }
       if (!res.body) throw new Error('No response body');
       const reader = res.body.getReader();
-      let llmText = '';
-      const processChunk = (chunk) => {
-        chunk.split('data:').forEach(function processPart(part) {
+      setIsThinking(false);
+      const processChunk = (chunk, llmTextRef) => {
+        chunk.split('\n').forEach(function processPart(part) {
           const trimmed = part.trim();
-          if (trimmed) {
+          if (!trimmed) return;
+          if (trimmed.startsWith(':')) {
+            if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
+            return;
+          }
+          if (trimmed.startsWith('data:')) {
+            const dataStr = trimmed.slice(5).trim();
+            if (dataStr === '[DONE]') return;
             try {
-              const json = JSON.parse(trimmed);
-              if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
-                llmText += json.choices[0].delta.content;
+              const json = JSON.parse(dataStr);
+              const text =
+                (json.reasoning) ||
+                (json.content) ||
+                (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
+              if (text) {
+                llmTextRef.current += text;
+                setIsThinking(false);
                 setChatMessages(msgs => {
                   const last = msgs[msgs.length - 1];
                   if (last && last.sender === 'llm') {
-                    return [...msgs.slice(0, -1), { ...last, text: llmText }];
+                    return [...msgs.slice(0, -1), { ...last, text: llmTextRef.current }];
                   } else {
-                    return [...msgs, { id: Date.now() + 1, sender: 'llm', text: llmText }];
+                    return [...msgs, { id: Date.now() + 1, sender: 'llm', text: llmTextRef.current }];
                   }
                 });
               }
-            } catch { }
+            } catch {}
           }
         });
       };
+      const llmTextRef = { current: '' };
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = new TextDecoder().decode(value);
-        processChunk(chunk);
+        processChunk(chunk, llmTextRef);
       }
+      setIsThinking(false);
       // Save LLM response to conversation
       const convRef = doc(db, 'conversations', convId);
       await updateDoc(convRef, {
-        messages: arrayUnion({ role: 'assistant', content: llmText, model: modelObj?.openRouterName || 'openai/gpt-4o' }),
+        messages: arrayUnion({ role: 'assistant', content: llmTextRef.current, model: modelObj?.openRouterName || 'openai/gpt-4o' }),
         lastUsed: Timestamp.now(),
       });
       setLoading(false);
@@ -210,11 +456,12 @@ function MainContent({ showSidebar, setShowSidebar }) {
         lastUsed: Timestamp.fromDate(new Date()).toDate().toISOString(),
         model: modelObj?.openRouterName || 'openai/gpt-4o',
         modelDisplayName: modelObj?.displayName || 'GPT-4o',
-        messages: [...convoMessages, { role: 'assistant', content: llmText, model: modelObj?.openRouterName || 'openai/gpt-4o' }],
+        messages: [...convoMessages, { role: 'assistant', content: llmTextRef.current, model: modelObj?.openRouterName || 'openai/gpt-4o' }],
       };
       localStorage.setItem('conversations', JSON.stringify(cached));
     } catch (err) {
       setChatMessages(msgs => [...msgs, { id: Date.now() + 2, sender: 'llm', text: 'Error: ' + (err.message || 'Unknown error') }]);
+      setIsThinking(false);
       setLoading(false);
     }
   };
@@ -222,6 +469,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
   // Define the reroll handler as a variable so it can be referenced in the toast
   const handleReroll = async (llmMsg, newModel) => {
     setLoading(true);
+    setIsThinking(false);
     const modelObj = newModel;
     const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
     const FUNCTIONS_URL = process.env.REACT_APP_FUNCTIONS_URL;
@@ -235,6 +483,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
       }
     }
     if (!userMsg) {
+      setIsThinking(false);
       setLoading(false);
       return;
     }
@@ -258,6 +507,17 @@ function MainContent({ showSidebar, setShowSidebar }) {
         headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey || '' },
         body: JSON.stringify({ model: modelName, messages: convoMessages }),
       });
+      if (res.status === 429) {
+        try {
+          const data = await res.json();
+          if (data && data.error === 'rate_limit') {
+            toast.error(data.message, { icon: <Sparkles size={18} /> });
+            setIsThinking(false);
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
       if (res.status === 500) {
         toast.error(
           <span>
@@ -268,44 +528,53 @@ function MainContent({ showSidebar, setShowSidebar }) {
             >Reroll again</button>
           </span>
         );
+        setIsThinking(false);
         setLoading(false);
         return;
       }
       if (!res.body) throw new Error('No response body');
       const reader = res.body.getReader();
-      let llmText = '';
-      // Insert a placeholder for the rerolled message
-      setChatMessages(msgs => {
-        const newMsgs = [...msgs];
-        newMsgs.splice(llmMsgIdx, 0, { ...llmMsg, text: '', model: modelObj.openRouterName });
-        return newMsgs;
-      });
-      const processChunk = (chunk) => {
-        chunk.split('data:').forEach(function processPart(part) {
+      setIsThinking(false);
+      const processRerollChunk = (chunk, llmTextRef) => {
+        chunk.split('\n').forEach(function processPart(part) {
           const trimmed = part.trim();
-          if (trimmed) {
+          if (!trimmed) return;
+          if (trimmed.startsWith(':')) {
+            if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
+            return;
+          }
+          if (trimmed.startsWith('data:')) {
+            const dataStr = trimmed.slice(5).trim();
+            if (dataStr === '[DONE]') return;
             try {
-              const json = JSON.parse(trimmed);
-              if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
-                llmText += json.choices[0].delta.content;
+              const json = JSON.parse(dataStr);
+              const text =
+                (json.reasoning) ||
+                (json.content) ||
+                (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
+              if (text) {
+                llmTextRef.current += text;
+                setIsThinking(false);
                 setChatMessages(msgs => {
                   const idx = msgs.findIndex(m => m.id === llmMsg.id);
                   if (idx === -1) return msgs;
                   const newMsgs = [...msgs];
-                  newMsgs[idx] = { ...newMsgs[idx], text: llmText, model: modelObj.openRouterName };
+                  newMsgs[idx] = { ...newMsgs[idx], text: llmTextRef.current, model: modelObj.openRouterName };
                   return newMsgs;
                 });
               }
-            } catch { }
+            } catch {}
           }
         });
       };
+      const llmTextRerollRef = { current: '' };
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = new TextDecoder().decode(value);
-        processChunk(chunk);
+        processRerollChunk(chunk, llmTextRerollRef);
       }
+      setIsThinking(false);
       setLoading(false);
     } catch (err) {
       toast.error(
@@ -318,6 +587,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
         </span>
       );
       setChatMessages(msgs => [...msgs, { id: Date.now() + 2, sender: 'llm', text: 'Error: ' + (err.message || 'Unknown error') }]);
+      setIsThinking(false);
       setLoading(false);
     }
   };
@@ -400,8 +670,18 @@ function MainContent({ showSidebar, setShowSidebar }) {
             <div className="flex-1 w-full flex flex-col items-center overflow-y-auto hide-scrollbar" style={{ maxHeight: 'calc(100vh - 250px)' }}>
               <Chat
                 modelFamily={lastUsedModelFamily}
-                messages={chatLoading ? [] : chatMessages}
+                messages={selectedBranchId !== 'root' && branches[selectedBranchId] ? branches[selectedBranchId].messages : chatLoading ? [] : chatMessages}
                 onReroll={handleReroll}
+                loading={loading}
+                isThinking={isThinking}
+                selectedBranchId={selectedBranchId}
+                setSelectedBranchId={setSelectedBranchId}
+                branches={branches}
+                setBranches={setBranches}
+                branchLoading={branchLoading}
+                setBranchLoading={setBranchLoading}
+                onBranchesChange={handleBranchesChange}
+                isTemporaryChat={isTemporaryChat}
               />
               {chatLoading && (
                 <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: 'rgba(32,27,37,0.85)' }}>
@@ -421,6 +701,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
           </div>
         )}
 
+
         <MessageInput
           message={message}
           setMessage={setMessage}
@@ -430,6 +711,8 @@ function MainContent({ showSidebar, setShowSidebar }) {
           isLoading={loading}
           selectedModel={selectedModel}
           setSelectedModel={setSelectedModel}
+          isTemporaryChat={isTemporaryChat}
+          onStartTemporaryChat={handleToggleTemporaryChat}
         />
       </motion.main>
     </>

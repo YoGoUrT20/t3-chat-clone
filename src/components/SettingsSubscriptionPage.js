@@ -1,25 +1,26 @@
 import { useState, useRef, useEffect } from 'react'
-import { ArrowLeft, Copy, LogOut, Check, Loader, Info } from 'lucide-react'
+import { ArrowLeft, Check, Loader } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import LiquidGlassButton from './LiquidGlassButton'
-import { Button } from './ui/button'
 import toast from 'react-hot-toast'
 import SettingsTabs from './ui/SettingsTabs'
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore'
-import Tooltip from './Tooltip'
-import SignOutDialog from './SignOutDialog'
-import MessagesLeft from './MessagesLeft'
+import ProfileSidebar from './ProfileSidebar'
+import Iso6391 from 'iso-639-1'
+import SettingsProfileTab from './SettingsProfileTab'
+import SettingsHistoryTab from './SettingsHistoryTab'
+import { models } from '../models'
 
-const tabs = ['My Profile', 'Customize', 'Subscription', 'Billing', 'Security', 'Help']
+const tabs = ['My Profile', 'Customize', 'Subscription', 'Security', 'Help', 'History']
 
 const tabContents = [
   null,
   <div className='p-6'>Customize content</div>,
   <div className='p-6'>Subscription content</div>,
-  <div className='p-6'>Billing content</div>,
   <div className='p-6'>Security content</div>,
   <div className='p-6'>Help content</div>,
+  null,
 ]
 
 export default function SettingsSubscriptionPage() {
@@ -34,11 +35,33 @@ export default function SettingsSubscriptionPage() {
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipX, setTooltipX] = useState(0)
   const [tooltipY, setTooltipY] = useState(0)
-  const [showSignOutDialog, setShowSignOutDialog] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
   const [messagesLeft, setMessagesLeft] = useState(20)
   const [resetAt, setResetAt] = useState(null)
   const [now, setNow] = useState(Date.now())
+  const [preferredLanguage, setPreferredLanguage] = useState(() => {
+    return localStorage.getItem('user_language') || ''
+  })
+  const [userStats, setUserStats] = useState(() => {
+    const cached = localStorage.getItem('user_stats')
+    if (cached) {
+      try {
+        return JSON.parse(cached)
+      } catch {
+        return { totalTokens: 0, totalMessages: 0, totalImages: 0 }
+      }
+    }
+    return { totalTokens: 0, totalMessages: 0, totalImages: 0 }
+  })
+  const [exportFormat, setExportFormat] = useState('json')
+  const [conversations, setConversations] = useState([])
+  const [filterConversationId, setFilterConversationId] = useState('')
+  const [filterStartDate, setFilterStartDate] = useState('')
+  const [filterEndDate, setFilterEndDate] = useState('')
+  const [loadingConvos, setLoadingConvos] = useState(false)
+  const [reasoningEnabled, setReasoningEnabled] = useState(false)
+  const contentRef = useRef(null)
+  const [containerHeight, setContainerHeight] = useState('auto')
+  const [defaultModel, setDefaultModel] = useState(() => localStorage.getItem('default_model') || models[0].name)
 
   useEffect(() => {
     if (!user) return
@@ -48,6 +71,13 @@ export default function SettingsSubscriptionPage() {
       if (snap.exists() && snap.data().systemPrompt) {
         setSystemPrompt(snap.data().systemPrompt)
         prevValue.current = snap.data().systemPrompt
+      }
+      if (snap.exists() && typeof snap.data().reasoningEnabled === 'boolean') {
+        setReasoningEnabled(snap.data().reasoningEnabled)
+      }
+      if (snap.exists() && snap.data().defaultModel) {
+        setDefaultModel(snap.data().defaultModel)
+        localStorage.setItem('default_model', snap.data().defaultModel)
       }
     })
   }, [user])
@@ -87,6 +117,16 @@ export default function SettingsSubscriptionPage() {
         setMessagesLeft(typeof data.messagesLeft === 'number' ? data.messagesLeft : 20)
         setResetAt(typeof data.resetAt === 'number' ? data.resetAt : null)
         localStorage.setItem('user_quota', JSON.stringify({ resetAt: data.resetAt }))
+        setUserStats({
+          totalTokens: typeof data.totalTokens === 'number' ? data.totalTokens : 0,
+          totalMessages: typeof data.totalMessages === 'number' ? data.totalMessages : 0,
+          totalImages: typeof data.totalImages === 'number' ? data.totalImages : 0,
+        })
+        localStorage.setItem('user_stats', JSON.stringify({
+          totalTokens: typeof data.totalTokens === 'number' ? data.totalTokens : 0,
+          totalMessages: typeof data.totalMessages === 'number' ? data.totalMessages : 0,
+          totalImages: typeof data.totalImages === 'number' ? data.totalImages : 0,
+        }))
       }
     }
     fetchQuota()
@@ -98,14 +138,93 @@ export default function SettingsSubscriptionPage() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    if (!user || !resetAt || !now) return
+    if (now > resetAt) {
+      const db = getFirestore()
+      const userRef = doc(db, 'users', user.uid)
+      const newResetAt = now + 8 * 60 * 60 * 1000
+      setMessagesLeft(20)
+      setResetAt(newResetAt)
+      localStorage.setItem('user_quota', JSON.stringify({ resetAt: newResetAt }))
+      updateDoc(userRef, { messagesLeft: 20, resetAt: newResetAt })
+    }
+  }, [user, resetAt, now])
+
+  useEffect(() => {
+    if (user && user.preferredLanguage) {
+      setPreferredLanguage(
+        Iso6391.getAllCodes().find(
+          code => Iso6391.getName(code) === user.preferredLanguage
+        ) || ''
+      )
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!loading && !user) {
+      toast.error('Please sign in to continue')
+      navigate('/')
+    }
+  }, [user, loading, navigate])
+
+  useEffect(() => {
+    async function fetchConvos() {
+      setLoadingConvos(true)
+      let convos = []
+      const cached = JSON.parse(localStorage.getItem('conversations') || '{}')
+      if (user) {
+        const db = getFirestore()
+        const qSnap = await getDoc(doc(db, 'users', user.uid))
+        if (qSnap.exists()) {
+          // Optionally fetch from Firestore if needed
+        }
+        convos = Object.values(cached).filter(c => c.userId === user.uid)
+      } else {
+        convos = Object.values(cached)
+      }
+      setConversations(convos)
+      setLoadingConvos(false)
+    }
+    fetchConvos()
+  }, [user])
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setContainerHeight(contentRef.current.offsetHeight + 'px')
+    }
+  }, [activeIndex, systemPrompt, preferredLanguage, reasoningEnabled, exportFormat, filterConversationId, filterStartDate, filterEndDate, conversations, loadingConvos])
+
+  const handleDefaultModelChange = async (modelName) => {
+    setDefaultModel(modelName)
+    localStorage.setItem('default_model', modelName)
+    if (user) {
+      const db = getFirestore()
+      const userRef = doc(db, 'users', user.uid)
+      await updateDoc(userRef, { defaultModel: modelName })
+      toast.success('Default model updated!')
+    }
+  }
 
   let statusIcon = null
   if (status === 'saved') statusIcon = <Check size={16} className='text-green-500' />
   else if (status === 'saving') statusIcon = <Loader size={16} className='animate-spin text-blue-500' />
 
+  tabContents[6] = <SettingsHistoryTab 
+    exportFormat={exportFormat}
+    setExportFormat={setExportFormat}
+    filterConversationId={filterConversationId}
+    setFilterConversationId={setFilterConversationId}
+    filterStartDate={filterStartDate}
+    setFilterStartDate={setFilterStartDate}
+    filterEndDate={filterEndDate}
+    setFilterEndDate={setFilterEndDate}
+    conversations={conversations}
+    loadingConvos={loadingConvos}
+  />
 
   return (
-    <div className='main-bg flex justify-center items-center w-full min-h-screen'>
+    <div className='main-bg flex justify-center items-start w-full min-h-screen' style={{ minHeight: '130vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
       <div className='absolute top-6 left-6 z-20'>
         <LiquidGlassButton
           onClick={() => navigate(-1)}
@@ -114,131 +233,86 @@ export default function SettingsSubscriptionPage() {
           variant={'rect'}
         />
       </div>
-      <div className='w-full max-w-[1200px] flex flex-row bg-transparent rounded-xl shadow-none border-none min-h-[500px]'>
-        {/* 247px is the width of the sidebar when user is loading.., yes i know its bad */}
-        <div className={`flex flex-col items-center justify-start pt-16 px-10 bg-transparent relative ${loading || !user ? 'min-w-[220px]' : 'min-w-[220px]'} transition-all duration-300`} style={{minHeight:220}}>
-          <div className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center transition-opacity duration-400 ${loading || !user ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} style={{zIndex:1}}>
-            <div className='flex flex-col items-center w-full animate-pulse'>
-              <div className='w-28 h-28 rounded-full bg-gray-200 dark:bg-[#232228] mb-3' />
-              <div className='h-5 w-24 bg-gray-200 dark:bg-[#232228] rounded mb-2' />
-              <div className='flex flex-col items-center gap-2 mt-2 w-full'>
-                <div className='h-7 w-full bg-gray-200 dark:bg-[#232228] rounded mb-1' />
-                <div className='h-7 w-full bg-gray-200 dark:bg-[#232228] rounded mb-1' />
-                <div className='h-7 w-full bg-gray-200 dark:bg-[#232228] rounded' />
-                <div className='w-full flex flex-col items-center mt-2'>
-                  <div className='w-full h-2.5 rounded-full bg-gray-200 dark:bg-[#232228] mb-1' />
-                  <div className='flex justify-between w-full mt-1 text-xs'>
-                    <div className='h-4 w-16 bg-gray-200 dark:bg-[#232228] rounded' />
-                    <div className='h-4 w-20 bg-gray-200 dark:bg-[#232228] rounded ml-2' />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className={`absolute inset-0 w-full h-full flex flex-col items-center justify-center transition-opacity duration-400 ${loading || !user ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}`} style={{zIndex:2}}>
-            {user && !loading && (
-              <>
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName}
-                  className='w-28 h-28 rounded-full border border-gray-300 dark:border-[#3B3337] mb-3 object-cover'
-                  onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/default-avatar.png'; }}
-                />
-                <span className='text-base text-center text-[#0e0e10] dark:text-white font-semibold max-w-[140px] truncate'>{user.displayName}</span>
-                <div className='flex flex-col items-center gap-2 mt-2 w-full'>
-                  <button
-                    className='flex items-center gap-2 px-3 py-1 rounded-md bg-[#f5f5fa] dark:bg-[#232228] text-xs text-[#0e0e10] dark:text-white hover:bg-[#ececec] dark:hover:bg-[#28262b] transition w-full justify-center'
-                    onClick={() => {
-                      navigator.clipboard.writeText(user.public_id)
-                      toast.success('User ID copied!')
-                    }}
-                    type='button'
-                  >
-                    <Copy size={16} />
-                    <span>Copy User ID</span>
-                  </button>
-                  <Button
-                    variant='ghost'
-                    className='flex items-center gap-2 w-full justify-center text-[#d32f2f] dark:text-[#ff6b81] mt-1'
-                    type='button'
-                    onClick={() => setShowSignOutDialog(true)}
-                  >
-                    <LogOut size={16} />
-                    <span>Sign out</span>
-                  </Button>
-                  <MessagesLeft messagesLeft={messagesLeft} resetAt={resetAt} now={now} />
-                  <SignOutDialog
-                    open={showSignOutDialog}
-                    onOpenChange={setShowSignOutDialog}
-                    loading={signingOut}
-                    onConfirm={async () => {
-                      setSigningOut(true)
-                      try {
-                        await signOutUser()
-                        toast.success('Signed out')
-                      } finally {
-                        setSigningOut(false)
-                        setShowSignOutDialog(false)
-                      }
-                    }}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-        <div className='flex-1 flex flex-col items-start justify-start pt-10 pl-8 pr-8 relative'>
-          <SettingsTabs
-            tabs={tabs}
-            activeIndex={activeIndex}
-            setActiveIndex={setActiveIndex}
+      <div className='w-full max-w-[1200px] flex flex-row bg-transparent rounded-xl shadow-none border-none min-h-[500px] mt-80'>
+        <div className={`flex flex-col items-center justify-start bg-transparent relative ${loading || !user ? 'min-w-[220px]' : 'min-w-[220px]'} transition-all duration-300 mt-32`} style={{ minHeight: 220, position: 'sticky', top: 72, alignSelf: 'flex-start' }}>
+          <ProfileSidebar
+            user={user}
+            loading={loading}
+            signOutUser={async () => {
+              await signOutUser()
+              toast.success('Signed out')
+              navigate('/')
+            }}
+            messagesLeft={messagesLeft}
+            resetAt={resetAt}
+            now={now}
           />
-          <div className='w-full mt-8 min-h-[300px] min-w-[350px] rounded-xl shadow border border-[#ececec] dark:border-[#232228] flex flex-col transition-none'>
-          {/* <div className='w-full mt-8 min-h-[300px] bg-white dark:bg-[#18171A] rounded-xl shadow border border-[#ececec] dark:border-[#232228] flex flex-col'> */}
-          {activeIndex === 0 ? (
-              <div className='w-full p-6 pointer-events-none bg-transparent shadow-none'>
-                <div className='w-full relative'>
-                  <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] mb-1 block text-left pointer-events-auto' style={{display:'flex',alignItems:'center',gap:'6px'}}>
-                    System Prompt
-                    <span
-                      style={{display:'inline-flex',alignItems:'center',cursor:'pointer',position:'relative'}}
-                      onMouseEnter={e => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setTooltipX(rect.left + rect.width / 2);
-                        setTooltipY(rect.bottom + window.scrollY);
-                        setShowTooltip(true);
-                      }}
-                      onMouseLeave={() => setShowTooltip(false)}
-                    >
-                      <Info size={15} className='ml-1 text-[#bdbdbd]' />
-                      {showTooltip && (
-                        <Tooltip x={tooltipX} y={tooltipY} text={'A system prompt is an instruction or context given to the AI before your messages. It helps guide the assistant\'s behavior.'} />
-                      )}
-                    </span>
-                  </label>
-                  <textarea
-                    value={systemPrompt}
-                    onChange={e => {
-                      setSystemPrompt(e.target.value)
+        </div>
+        <div className='flex-1 flex flex-col items-start justify-start pl-8 pr-8 relative'>
+          <div className='w-full'>
+            <SettingsTabs
+              tabs={tabs}
+              activeIndex={activeIndex}
+              setActiveIndex={setActiveIndex}
+            />
+            <div
+              className='w-full mt-8 min-h-[300px] min-w-[350px] rounded-xl shadow border border-[#ececec] dark:border-[#232228] flex flex-col transition-none'
+              style={{
+                height: containerHeight,
+                transition: 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                overflow: 'hidden',
+              }}
+            >
+              <div ref={contentRef}>
+                {activeIndex === 0 ? (
+                  <SettingsProfileTab
+                    systemPrompt={systemPrompt}
+                    setSystemPrompt={value => {
+                      setSystemPrompt(value)
                       setStatus('saving')
                     }}
-                    className='w-full px-3 py-2 rounded-md border-2 border-[#d1b3c4] dark:border-[#a97ca5] bg-[#f5f5fa] dark:bg-[#232228] text-[#0e0e10] dark:text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-sm pointer-events-auto resize-none'
-                    placeholder='Enter your system prompt...'
-                    rows={5}
+                    status={status}
+                    statusIcon={statusIcon}
+                    showTooltip={showTooltip}
+                    setShowTooltip={setShowTooltip}
+                    tooltipX={tooltipX}
+                    setTooltipX={setTooltipX}
+                    tooltipY={tooltipY}
+                    setTooltipY={setTooltipY}
+                    preferredLanguage={preferredLanguage}
+                    setPreferredLanguage={setPreferredLanguage}
+                    user={user}
+                    userStats={userStats}
+                    reasoningEnabled={reasoningEnabled}
+                    setReasoningEnabled={setReasoningEnabled}
+                    onLanguageChange={async code => {
+                      if (!user) return
+                      const db = getFirestore()
+                      const userRef = doc(db, 'users', user.uid)
+                      const langName = Iso6391.getName(code) || ''
+                      await updateDoc(userRef, { preferredLanguage: langName })
+                      setPreferredLanguage(code)
+                      localStorage.setItem('user_language', code)
+                      toast.success('Preferred language updated!')
+                    }}
+                    onReasoningChange={async checked => {
+                      setReasoningEnabled(checked)
+                      if (user) {
+                        const db = getFirestore()
+                        const userRef = doc(db, 'users', user.uid)
+                        await updateDoc(userRef, { reasoningEnabled: checked })
+                        toast.success(checked ? 'Model reasoning enabled!' : 'Model reasoning disabled!')
+                      }
+                    }}
+                    defaultModel={defaultModel}
+                    setDefaultModel={setDefaultModel}
+                    onDefaultModelChange={handleDefaultModelChange}
                   />
-                  <div className='absolute bottom-2 right-3 pointer-events-auto'>
-                    <span className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-[#f5f5fa] dark:bg-[#232228] border border-[#ececec] dark:border-[#232228] ${status === 'saved' ? 'text-[#0e0e10] dark:text-white' : ''}`}>
-                      {statusIcon}
-                      {status === 'saved' && 'saved'}
-                      {status === 'saving' && 'saving'}
-                      {status === 'error' && 'error'}
-                    </span>
-                  </div>
-                </div>
+                ) : (
+                  tabContents[activeIndex]
+                )}
               </div>
-            ) : (
-              tabContents[activeIndex]
-            )}
+            </div>
           </div>
         </div>
       </div>

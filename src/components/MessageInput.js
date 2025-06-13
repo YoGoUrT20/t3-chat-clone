@@ -15,12 +15,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '../hooks/use-mobile';
 import ModelSelectionMobile from './ModelSelectionMobile';
 import Tooltip from './Tooltip';
+import toast from 'react-hot-toast';
+import ToolsMenu from './ToolsMenu';
 
-function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage, selectedModel, setSelectedModel }) {
+function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage, selectedModel, setSelectedModel, isTemporaryChat, onStartTemporaryChat }) {
   const [previewFiles, setPreviewFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [showTools, setShowTools] = useState(false);
   const fileInputRef = useRef(null);
   const dropAreaRef = useRef(null);
   const formRef = useRef(null);
@@ -31,6 +34,8 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
   const dropdownRef = useRef(null);
   const toggleButtonRef = useRef(null);
   const prevIsLoading = useRef(isLoading);
+  const toolsDropdownRef = useRef(null);
+  const toolsButtonRef = useRef(null);
 
   // Pick a random placeholder only once per mount
   const randomPlaceholderRef = useRef(MESSAGE_PLACEHOLDERS[Math.floor(Math.random() * MESSAGE_PLACEHOLDERS.length)]);
@@ -98,14 +103,26 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
     addFiles(files);
   };
 
+  const MAX_FILE_SIZE_MB = 5;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
   const addFiles = useCallback((files) => {
     if (files.length === 0) return;
     const currentFiles = form.getValues('images') || [];
     const totalFiles = currentFiles.length + files.length;
     if (totalFiles > 5) {
       setError('You can upload a maximum of 5 files');
+      toast.error('You can upload a maximum of 5 files');
       const allowedNewFiles = 5 - currentFiles.length;
       files = files.slice(0, allowedNewFiles);
+      if (files.length === 0) return;
+    }
+    // Filter out files over 5MB
+    const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE_BYTES);
+    if (oversizedFiles.length > 0) {
+      setError('Each file must be 5MB or less');
+      toast.error('Each file must be 5MB or less');
+      files = files.filter(file => file.size <= MAX_FILE_SIZE_BYTES);
       if (files.length === 0) return;
     }
     const newPreviewFiles = files.map((file) => {
@@ -119,7 +136,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
     const updatedFiles = [...currentFiles, ...files];
     setPreviewFiles([...previewFiles, ...newPreviewFiles]);
     form.setValue('images', updatedFiles);
-  }, [form, previewFiles]);
+  }, [form, previewFiles, MAX_FILE_SIZE_BYTES]);
 
   const removeFile = (index) => {
     const currentFiles = form.getValues('images') || [];
@@ -242,6 +259,22 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
     prevIsLoading.current = isLoading;
   }, [isLoading]);
 
+  // Close tools selector on outside click
+  useEffect(() => {
+    if (!showTools || isMobile) return;
+    const handleClickOutside = (event) => {
+      if (
+        (toolsDropdownRef.current && toolsDropdownRef.current.contains(event.target)) ||
+        (toolsButtonRef.current && toolsButtonRef.current.contains(event.target))
+      ) {
+        return;
+      }
+      setShowTools(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTools, isMobile]);
+
   return (
     <UIForm {...form}>
       <form ref={formRef} onSubmit={form.handleSubmit((...args) => {
@@ -250,12 +283,12 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
           inputRef.current.style.overflowY = 'hidden';
         }
         onSubmit(...args, selectedModel);
-      })} 
+      })}
         className={cn('relative', isMobile && 'fixed bottom-0 left-0 w-full z-30 bg-[#221D27] p-2 pb-4', !isMobile && '')}
         style={isMobile ? { boxShadow: '0 -2px 24px 0 rgba(0,0,0,0.25)' } : {}}>
         <div className="relative max-w-2xl mx-auto message-input-container">
           {/* Liquid glass border effect */}
-          <div className="absolute inset-0 z-0 rounded-[24px] pointer-events-none border-2 border-white/60 bg-gradient-to-br from-white/10 via-white/5 to-white/0 backdrop-blur-2xl backdrop-brightness-125" style={{boxShadow: '0 0 16px 2px rgba(255,255,255,0.10), 0 4px 32px 0 rgba(0,0,0,0.18)'}} />
+          <div className="absolute inset-0 z-0 rounded-[24px] pointer-events-none border-2 border-white/60 bg-gradient-to-br from-white/10 via-white/5 to-white/0 backdrop-blur-2xl backdrop-brightness-125" style={{ boxShadow: '0 0 16px 2px rgba(255,255,255,0.10), 0 4px 32px 0 rgba(0,0,0,0.18)' }} />
           {/* Main glass content */}
           <div
             ref={dropAreaRef}
@@ -338,6 +371,20 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                       )}
                     </AnimatePresence>
                   </div>
+                  <div className='relative'>
+                    <ToolsMenu
+                      isLoading={isLoading}
+                      isTemporaryChat={isTemporaryChat}
+                      onStartTemporaryChat={onStartTemporaryChat}
+                      isMobile={isMobile}
+                      toolsDropdownRef={toolsDropdownRef}
+                      toolsButtonRef={toolsButtonRef}
+                      showTools={showTools}
+                      setShowTools={setShowTools}
+                      showTooltip={showTooltip}
+                      hideTooltip={hideTooltip}
+                    />
+                  </div>
                 </div>
                 <AutoResizeTextarea
                   ref={inputRef}
@@ -384,6 +431,8 @@ MessageInput.propTypes = {
   setMessage: PropTypes.func.isRequired,
   selectedModel: PropTypes.string.isRequired,
   setSelectedModel: PropTypes.func.isRequired,
+  isTemporaryChat: PropTypes.bool,
+  onStartTemporaryChat: PropTypes.func,
 };
 
 export default MessageInput; 

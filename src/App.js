@@ -8,6 +8,8 @@ import TermsOfService from './components/TermsOfService';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import SecurityPolicy from './components/SecurityPolicy';
 import SettingsSubscriptionPage from './components/SettingsSubscriptionPage';
+import SharedChatPage from './components/SharedChatPage';
+import FAQSupport from './components/FAQSupport';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -45,6 +47,17 @@ function AppWithRouter() {
 
   // Determine if chat is open
   const isChatOpen = location.pathname.startsWith('/chat/');
+  // So bad but works
+  React.useEffect(() => {
+    if (location.pathname === '/') {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
+    }
+    return () => {
+      document.body.classList.remove('no-scroll');
+    };
+  }, [location.pathname]);
 
   return (
     <AuthProvider>
@@ -54,6 +67,7 @@ function AppWithRouter() {
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/security-policy" element={<SecurityPolicy />} />
+        <Route path="/faq-support" element={<FAQSupport />} />
         <Route path="/settings" element={<SettingsSubscriptionPage />} />
         <Route path="/chat/:id" element={
           <motion.div
@@ -93,6 +107,26 @@ function AppWithRouter() {
             `}</style>
             <SidePanel visible={showSidebar} setVisible={setShowSidebar} />
             <MainContent key={resetKey} showSidebar={showSidebar} setVisible={setShowSidebar} />
+          </motion.div>
+        } />
+        <Route path="/shared/:id" element={
+          <motion.div
+            className="main-bg text-white flex h-screen overflow-hidden"
+            initial={{ marginTop: 15 }}
+            animate={{ marginTop: 0 }}
+            transition={{ duration: 0.4, ease: 'easeInOut' }}
+          >
+            <style>{`
+              .animate-scale-in {
+                animation: scaleIn 0.3s ease-out;
+              }
+              @keyframes scaleIn {
+                from { transform: scale(0.97); opacity: 0.3; }
+                to { transform: scale(1); opacity: 1; }
+              }
+            `}</style>
+            <SidePanel visible={showSidebar} setVisible={setShowSidebar} />
+            <SharedChatPage />
           </motion.div>
         } />
       </Routes>

@@ -247,9 +247,9 @@ function SidePanel({ onReset, visible, setVisible }) {
           <SidebarGroup>
             <SidebarMenu>
               {user && (
-                <NavItem to='/settings/customization' icon={Settings}>Settings</NavItem>
+                <NavItem to='/settings' icon={Settings}>Settings</NavItem>
               )}
-              <NavItem to='/privacy-policy#contact' icon={HelpCircle}>Help</NavItem>
+              <NavItem to='/faq-support' icon={HelpCircle}>Help</NavItem>
             </SidebarMenu>
           </SidebarGroup>
         </SidebarFooter>

@@ -1,4 +1,4 @@
-// If you update the models, you also need to update the models in the functions/models.js file
+// If you update the models, you also need to update the models in the src/models.js file
 export const models = [
   {
     name: 'gemini-2.5-flash',

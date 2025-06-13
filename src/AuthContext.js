@@ -3,6 +3,7 @@ import { auth } from './firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
@@ -25,10 +26,12 @@ export function AuthProvider({ children }) {
         const userSnap = await getDoc(userRef);
         let key = null;
         let publicId = null;
+        let createdAt = null;
         if (userSnap.exists()) {
           const data = userSnap.data();
           key = data.apiKey;
           publicId = data.public_id;
+          createdAt = data.createdAt;
         }
         if (!key) {
           key = [...Array(48)].map(() => Math.random().toString(36)[2]).join('');
@@ -36,7 +39,11 @@ export function AuthProvider({ children }) {
         if (!publicId) {
           publicId = uuidv4();
         }
-        await setDoc(userRef, { apiKey: key, public_id: publicId }, { merge: true });
+        // Save createdAt only if it does not exist
+        if (!createdAt) {
+          createdAt = Date.now();
+        }
+        await setDoc(userRef, { apiKey: key, public_id: publicId, createdAt }, { merge: true });
         setApiKey(key);
         localStorage.setItem('apiKey', key);
         // Merge public_id into user object for context
@@ -55,7 +62,15 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      if (err && err.code === 'auth/missing-project-id') {
+        toast.error('Login failed: Firebase project ID is missing or misconfigured.');
+      } else {
+        toast.error('Login failed. Please try again.');
+      }
+    }
   };
 
   const signOutUser = async () => {

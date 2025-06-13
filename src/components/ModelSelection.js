@@ -7,7 +7,7 @@ import styles from './ModelSelection.module.css';
 import ModelCard from './ModelCard';
 import Tooltip from './Tooltip';
 
-function ModelSelection({ items = models, className, selectedModel, onModelSelect }) {
+function ModelSelection({ items = models, className, selectedModel, onModelSelect, defaultModel }) {
   // Custom family order
   const familyOrder = ['claude', 'gemini', 'chatgpt', 'deepseek', 'llama', 'grok', 'qwen'];
   const sortByCustomFamilyOrder = (models) => {
@@ -114,6 +114,16 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
     });
   };
 
+  // Determine which model is selected
+  let effectiveSelectedModel = selectedModel
+  if (!effectiveSelectedModel) {
+    if (defaultModel) {
+      effectiveSelectedModel = models.find(m => m.name === defaultModel)
+    }
+    if (!effectiveSelectedModel) {
+      effectiveSelectedModel = models.find(m => m.name === 'gpt-4.1')
+    }
+  }
 
   const filteredItems = filterModels(sortedItems, search);
 
@@ -160,7 +170,7 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
             <ModelCard
               key={item.name}
               item={item}
-              selectedModel={selectedModel}
+              selectedModel={effectiveSelectedModel}
               onModelSelect={onModelSelect}
               iconRefs={iconRefs}
               nameRefs={nameRefs}
