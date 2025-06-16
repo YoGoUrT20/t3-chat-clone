@@ -284,7 +284,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
         }
         onSubmit(...args, selectedModel);
       })}
-        className={cn('relative', isMobile && 'fixed bottom-0 left-0 w-full z-30 bg-[#221D27] p-2 pb-4', !isMobile && '')}
+        className={cn('relative', isMobile && 'fixed bottom-0 left-0 w-full z-30 p-2 pb-4', !isMobile && '')}
         style={isMobile ? { boxShadow: '0 -2px 24px 0 rgba(0,0,0,0.25)' } : {}}>
         <div className="relative max-w-2xl mx-auto message-input-container">
           {/* Liquid glass border effect */}

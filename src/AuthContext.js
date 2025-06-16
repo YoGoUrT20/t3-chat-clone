@@ -27,11 +27,13 @@ export function AuthProvider({ children }) {
         let key = null;
         let publicId = null;
         let createdAt = null;
+        let status = 'free';
         if (userSnap.exists()) {
           const data = userSnap.data();
           key = data.apiKey;
           publicId = data.public_id;
           createdAt = data.createdAt;
+          status = data.status || 'free';
         }
         if (!key) {
           key = [...Array(48)].map(() => Math.random().toString(36)[2]).join('');
@@ -43,11 +45,12 @@ export function AuthProvider({ children }) {
         if (!createdAt) {
           createdAt = Date.now();
         }
-        await setDoc(userRef, { apiKey: key, public_id: publicId, createdAt }, { merge: true });
+        // Always ensure user doc exists with at least status: 'free'
+        await setDoc(userRef, { apiKey: key, public_id: publicId, createdAt, status }, { merge: true });
         setApiKey(key);
         localStorage.setItem('apiKey', key);
-        // Merge public_id into user object for context
-        const mergedUser = { ...firebaseUser, public_id: publicId };
+        // Merge public_id and uid into user object for context
+        const mergedUser = { ...firebaseUser, public_id: publicId, uid: firebaseUser.uid, status };
         setUser(mergedUser);
         localStorage.setItem('user', JSON.stringify(mergedUser));
       } else {

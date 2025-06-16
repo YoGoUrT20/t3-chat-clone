@@ -12,7 +12,7 @@ function FAQSupport() {
     const location = useLocation();
     const activeIndex = tabRoutes.findIndex(route => location.pathname.startsWith(route));
     return (
-        <div className='overflow-y-auto h-screen w-full'>
+        <div className='w-full main-bg'>
             <div className='flex justify-center items-center w-full min-h-screen'>
                 <div className='absolute top-6 left-6 z-20'>
                     <LiquidGlassButton

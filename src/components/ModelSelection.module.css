@@ -3,7 +3,6 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 8px;
-  border: 1.5px solid rgba(255,255,255,0.25);
   box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 1.5px 6px rgba(255,255,255,0.10) inset;
 }
 .ModelSelectionScrollbar::-webkit-scrollbar-track {
@@ -29,7 +28,6 @@
 }
 :global(.dark) .ModelSelectionScrollbar::-webkit-scrollbar-thumb {
   background: rgba(24, 24, 27, 0.35);
-  border: 1.5px solid rgba(24,24,27,0.25);
 }
 :global(.dark) .ModelSelectionScrollbar::-webkit-scrollbar-track {
   background: transparent;

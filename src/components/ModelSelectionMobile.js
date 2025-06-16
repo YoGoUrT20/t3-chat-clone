@@ -4,8 +4,10 @@ import { cn } from '../lib/utils';
 import { models } from '../models';
 import { capabilityColors, familyIcons } from '../constants';
 import { Button } from './ui/button';
+import { useAuth } from '../AuthContext';
 
 function ModelSelectionMobile({ items = models, className, selectedModel, onModelSelect }) {
+  const { user } = useAuth();
   const familyOrder = ['claude', 'gemini', 'chatgpt', 'deepseek', 'llama', 'grok', 'qwen'];
   const sortByCustomFamilyOrder = (models) => {
     return [...models].sort((a, b) => {
@@ -20,10 +22,15 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
       return a.displayName.localeCompare(b.displayName);
     });
   };
+  const useOwnKey = (user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true';
   const sortedItems = sortByCustomFamilyOrder(items)
     .map(item => {
-      const hasApiKey = false;
-      const hasSubscription = false;
+      let hasApiKey = false;
+      let hasSubscription = false;
+      if (useOwnKey) {
+        hasApiKey = true;
+        hasSubscription = true;
+      }
       const blockedByKey = item.apiKeyRequired && !hasApiKey;
       const blockedByLock = !item.freeAccess && !hasSubscription && !blockedByKey;
       const isBlocked = blockedByKey || blockedByLock;
@@ -37,13 +44,22 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
 
   return (
     <div className={cn('w-full flex flex-col items-center', className)}>
+      {useOwnKey && (
+        <div className={`w-full max-w-md flex items-center gap-2 px-4 py-3 mb-4 rounded-xl border border-[#ececec] dark:border-[#232228] bg-white/70 dark:bg-zinc-900/60 shadow`}
+             style={{ color: '#232228', fontWeight: 600, fontSize: '1rem' }}>
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="flex-shrink-0 text-[#DC749E] dark:text-[#F9B4D0]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+          <span className='flex-1 text-left text-[#232228] dark:text-[#ececec]'>Using your own OpenRouter API key. All models are available.</span>
+        </div>
+      )}
       <div className='w-full max-w-md px-2 py-4'>
+        {(!user || user.status !== 'premium') && (
         <div className='bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-md flex flex-col items-center justify-between px-4 py-6 mb-4'>
           <span className='text-xl font-bold text-zinc-900 dark:text-zinc-100'>Subscription</span>
           <span className='text-base text-zinc-700 dark:text-zinc-300 mt-1'>9$ to access all models</span>
           <Button className='text-base font-semibold px-6 py-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 mt-3'>Subscribe</Button>
           <span className='text-xs text-zinc-600 dark:text-zinc-400 mt-2'>9$/month</span>
         </div>
+        )}
         <div className='flex flex-col gap-2'>
           {sortedItems.map((item) => {
             const { blockedByKey, blockedByLock, isBlocked } = item;

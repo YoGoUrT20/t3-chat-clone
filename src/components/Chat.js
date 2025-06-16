@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Bot, RefreshCw, Share2, Copy, GitBranch, Loader2 } from 'lucide-react';
+import { User, Bot, Copy, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
-import RerollModelSelector from './RerollModelSelector';
 import { AnimatePresence, motion } from 'framer-motion';
 import rehypeHighlight from 'rehype-highlight';
-import 'highlight.js/styles/github-dark.css';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import styles from './Chat.module.css';
-import Tooltip from './Tooltip';
 import { useParams, useLocation } from 'react-router-dom';
+import { colorThemes, backgroundOptions, glowOptions, modelFamilyGlowGradients } from '../constants';
+import remarkGfm from 'remark-gfm';
+import { models } from '../models'
+import ActionButtons from './ActionButtons';
+import TableWithActions from './TableWithActions';
+import { useIsMobile } from '../hooks/use-mobile';
 
-function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinking, selectedBranchId, setSelectedBranchId, branches, setBranches, branchLoading, setBranchLoading, onBranchesChange, isTemporaryChat }) {
+function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinking, selectedBranchId, setSelectedBranchId, branches = {}, setBranches, branchLoading, setBranchLoading = () => {}, onBranchesChange, isTemporaryChat, chatContainerRef }) {
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
-  const [rerollOpen, setRerollOpen] = useState(false);
-  const [rerollMsg, setRerollMsg] = useState(null);
   const scrollRef = useRef(null);
   const containerRef = useRef(null);
   const [displayedMessages, setDisplayedMessages] = useState([]);
@@ -26,21 +27,26 @@ function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinki
   const location = useLocation();
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(null);
   const branchDropdownRef = useRef(null);
+  const fontFamily = localStorage.getItem('chat_font') || 'Inter';
+  const themeName = localStorage.getItem('chat_theme') || 'Classic';
+  const themeObj = colorThemes.find(t => t.name === themeName) || colorThemes[0];
+  const backgroundName = localStorage.getItem('chat_bg') || 'default'
+  const bgObj = backgroundOptions.find(b => b.value === backgroundName) || backgroundOptions[0]
+  const glowType = localStorage.getItem('glow_type') || 'glow-blue-purple';
+  const glowIntensity = (() => {
+    const val = localStorage.getItem('glow_intensity');
+    return val !== null ? parseFloat(val) : 0.7;
+  })();
+  const isMobile = useIsMobile();
 
-  // Subject to change
-  const familyBgColors = {
-    gemini: 'bg-gradient-to-r from-blue-400/30 to-blue-700/40 text-blue-100',
-    chatgpt: 'bg-gradient-to-r from-green-400/30 to-green-700/40 text-green-100',
-    claude: 'bg-gradient-to-r from-yellow-300/30 to-yellow-600/40 text-yellow-900',
-    llama: 'bg-gradient-to-r from-purple-300/30 to-purple-700/40 text-purple-100',
-    deepseek: 'bg-gradient-to-r from-pink-300/30 to-pink-700/40 text-pink-100',
-    grok: 'bg-gradient-to-r from-orange-300/30 to-orange-700/40 text-orange-100',
-    qwen: 'bg-gradient-to-r from-red-300/30 to-red-700/40 text-red-100',
-  };
-  const llmBg = familyBgColors[modelFamily] || 'bg-[#201B25] text-[#BFB3CB]';
+  const msgRefs = useRef([])
+  const bubbleRefs = useRef([])
+
+ 
 
   useEffect(() => {
-    if (isTemporaryChat) return;
+    // Only run fetchBranches if setBranchLoading is a real function (not the default no-op)
+    if (isTemporaryChat || setBranchLoading.toString() === '() => {}') return;
     async function fetchBranches() {
       setBranchLoading(true);
       try {
@@ -66,8 +72,14 @@ function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinki
   useEffect(() => {
     revealTimeouts.current.forEach(clearTimeout);
     revealTimeouts.current = [];
-    // Only set displayedMessages from branches if not on root branch
-    if (selectedBranchId !== 'root') {
+    // If on root branch or branches is empty, show propMessages
+    if (selectedBranchId === 'root' || Object.keys(branches).length === 0) {
+      setDisplayedMessages(propMessages);
+      setVisibleCount(propMessages.length);
+      return;
+    }
+    // Only set displayedMessages from branches if not on root branch and branches is not empty
+    if (selectedBranchId !== 'root' && Object.keys(branches).length > 0) {
       const branch = branches[selectedBranchId] || { messages: [] };
       const branchMessages = branch.messages || [];
       if (!branchMessages || branchMessages.length === 0) {
@@ -78,14 +90,16 @@ function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinki
       setVisibleCount(branchMessages.length);
       setDisplayedMessages(branchMessages);
     }
+    // Only clear timeouts on unmount
     return () => {
       revealTimeouts.current.forEach(clearTimeout);
       revealTimeouts.current = [];
     };
-  }, [branches, selectedBranchId]);
+  }, [branches, selectedBranchId, propMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
+      // Always scroll to the last message on load or when displayedMessages change
       scrollRef.current.scrollIntoView({ behavior: 'auto' });
     }
   }, [displayedMessages]);
@@ -115,9 +129,8 @@ function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinki
   }, [branchDropdownOpen]);
 
   useEffect(() => {
-    if (onBranchesChange) {
-      onBranchesChange(branches, selectedBranchId);
-    }
+    if (!onBranchesChange) return;
+    onBranchesChange(branches, selectedBranchId);
   }, [branches, selectedBranchId, onBranchesChange]);
 
   const handleCopy = (text) => {
@@ -204,151 +217,237 @@ function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinki
     }
   };
 
+  useEffect(() => {
+    const syntaxTheme = localStorage.getItem('syntax_theme') || 'github-dark';
+    document.querySelectorAll('link[data-syntax-theme]').forEach(link => link.remove())
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.type = 'text/css'
+    link.href = `/node_modules/highlight.js/styles/${syntaxTheme}.css`
+    link.setAttribute('data-syntax-theme', 'true')
+    document.head.appendChild(link)
+    return () => {
+      link.remove()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (chatContainerRef && chatContainerRef.current && displayedMessages.length > 0) {
+      setTimeout(() => {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }, 0);
+    }
+  }, [displayedMessages, chatContainerRef]);
+
   return (
     <>
-      <div className='w-full max-w-2xl mx-auto flex flex-col gap-2 pt-4'>
-        {/* Remove the branch selector from the top */}
-      </div>
+    
       <div
         ref={containerRef}
-        className='flex flex-col gap-4 w-full max-w-2xl mx-auto py-4 px-2'
+        className={`flex flex-col gap-4 w-full mx-auto py-4 px-2`}
+        style={isMobile ? {} : { maxWidth: 700 }}
       >
         <AnimatePresence initial={false}>
-          {displayedMessages.filter(Boolean).map((msg, idx, arr) => (
-            <motion.div
-              key={msg.id || msg.messageId || ('msg_' + idx)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.22 }}
-              className={`flex flex-col ${msg.role === 'user' || msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-            >
-              <div className={`flex ${msg.role === 'user' || msg.sender === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
-                {(msg.role === 'assistant' || msg.sender === 'llm') && (
-                  <div className='flex items-end mr-2'>
-                    <span className='bg-[#2A222E] p-2 rounded-full'><Bot size={20} className='text-[#BFB3CB]' /></span>
-                  </div>
-                )}
-                <div className={`max-w-[70%] px-4 py-2 rounded-xl text-base ${(msg.role === 'user' || msg.sender === 'user') ? 'bg-[#4D1F39] text-[#F4E9EE] rounded-br-none' : `${llmBg} rounded-bl-none`}`} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                  <ReactMarkdown
-                    rehypePlugins={[rehypeHighlight]}
-                    components={{
-                      code({node, inline, className, children, ...props}) {
-                        if (inline) {
-                          return <code className='bg-[#2A222E] px-1 py-0.5 rounded text-[#E0E8FF] font-mono text-sm'>{children}</code>;
-                        }
-                        const codeString = String(children).trim();
-                        const lineCount = codeString.split('\n').length;
-                        const buttonClass = lineCount === 2
-                          ? 'absolute top-6 right-4 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100'
-                          : 'absolute top-3 right-2 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100';
-                        return (
-                          <div className='relative group'>
-                            <pre className={`chat-markdown-pre bg-[#2A222E] p-3 rounded-lg overflow-x-auto my-2 ${styles.chatMarkdownPre}`}><code className={'text-[#E0E8FF] font-mono text-sm ' + (className || '')}>{children}</code></pre>
-                            <button
-                              className={buttonClass}
-                              onClick={() => handleCopy(codeString)}
-                              type='button'
-                              tabIndex={0}
-                              aria-label='Copy code'
-                            >
-                              <Copy size={16} className='text-[#BFB3CB]' />
-                            </button>
-                          </div>
-                        );
-                      },
-                      ul({children, ...props}) {
-                        return <ul className='list-disc pl-6 my-2'>{children}</ul>;
-                      },
-                      ol({children, ...props}) {
-                        return <ol className='list-decimal pl-6 my-2'>{children}</ol>;
-                      },
-                      li({children, ...props}) {
-                        return <li className='mb-1'>{children}</li>;
-                      },
-                      strong({children, ...props}) {
-                        return <strong className='font-bold text-[#F9B4D0]'>{children}</strong>;
-                      },
-                    }}
-                  >{msg.content || msg.text}</ReactMarkdown>
-                </div>
-                {(msg.role === 'user' || msg.sender === 'user') && (
-                  <div className='flex items-end ml-2'>
-                    <span className='bg-[#4D1F39] p-2 rounded-full'><User size={20} className='text-[#F4E9EE]' /></span>
-                  </div>
-                )}
-              </div>
-              {(msg.role === 'assistant' || msg.sender === 'llm') && (msg.id === lastLlmMsgId || msg.messageId === lastLlmMsgId) && (
-                <div className='flex gap-2 mt-2 ml-10 relative'>
-                  <button className='p-2 rounded-lg hover:bg-[#332940] transition' onClick={() => { setRerollOpen(true); setRerollMsg(msg); }}
-                    onMouseEnter={e => showTooltip(e, 'Reroll answer')}
-                    onMouseLeave={hideTooltip}
-                  > <RefreshCw size={16} className='text-[#BFB3CB]' /> </button>
-                  <button
-                    className='p-2 rounded-lg hover:bg-[#332940] transition'
-                    onClick={isTemporaryChat ? (e) => { e.preventDefault(); } : handleShare}
-                    onMouseEnter={e => showTooltip(e, isTemporaryChat ? 'Sharing is disabled for temporary chats' : 'Share')}
-                    onMouseLeave={hideTooltip}
-                  >
-                    <Share2 size={16} className='text-[#BFB3CB]' />
-                  </button>
-                  <button className='p-2 rounded-lg hover:bg-[#332940] transition' onClick={() => handleCopy(msg.content || msg.text)}
-                    onMouseEnter={e => showTooltip(e, 'Copy message')}
-                    onMouseLeave={hideTooltip}
-                  > <Copy size={16} className='text-[#BFB3CB]' /> </button>
-                  <button
-                    className='p-2 rounded-lg hover:bg-[#332940] transition'
-                    onClick={isTemporaryChat ? (e) => { e.preventDefault(); } : () => setBranchDropdownOpen(msg.id || msg.messageId)}
-                    onMouseEnter={e => showTooltip(e, isTemporaryChat ? 'Branching is disabled for temporary chats' : 'New branch or select branch')}
-                    onMouseLeave={hideTooltip}
-                  >
-                    <GitBranch size={16} className='text-[#BFB3CB]' />
-                  </button>
-                  {!isTemporaryChat && branchDropdownOpen === (msg.id || msg.messageId) && (
-                    <div ref={branchDropdownRef} className='absolute left-0 top-10 z-50 bg-[#2A222E] border border-[#332940] rounded-lg shadow-lg p-2 min-w-[180px]'>
-                      <div className='mb-2 text-xs text-[#BFB3CB] font-semibold'>Switch branch</div>
-                      <select
-                        className='w-full bg-[#2A222E] text-[#BFB3CB] rounded px-2 py-1 border border-[#332940] focus:outline-none mb-2'
-                        value={selectedBranchId}
-                        onChange={e => { setSelectedBranchId(e.target.value); setBranchDropdownOpen(null); }}
-                        disabled={branchLoading}
-                      >
-                        {branchOptions.map(opt => (
-                          <option key={opt.id} value={opt.id}>{opt.label}</option>
-                        ))}
-                      </select>
-                      <button
-                        className='w-full mt-1 px-2 py-1 rounded bg-[#4D1F39] text-[#F4E9EE] hover:bg-[#6A2B4D] transition font-semibold text-xs'
-                        onClick={() => { handleCreateBranch(msg.id || msg.messageId, idx); setBranchDropdownOpen(null); }}
-                        disabled={branchLoading}
-                      >Create new branch from here</button>
+          {displayedMessages.filter(Boolean).map((msg, idx, arr) => {
+            const isUser = msg.role === 'user' || msg.sender === 'user';
+            const key = msg.id || msg.messageId || ('msg_' + idx);
+            if (!msgRefs.current[idx]) msgRefs.current[idx] = null
+            const msgRefCb = el => { msgRefs.current[idx] = el }
+            const msgBg = (msg.role === 'user' || msg.sender === 'user') ? themeObj.user.bg : themeObj.assistant.bg;
+            let msgText = (msg.role === 'user' || msg.sender === 'user') ? themeObj.user.text : themeObj.assistant.text;
+            const themeType = themeObj.themeType;
+            if (themeType === 'dark') msgText = '#E0E8FF';
+            if (themeType === 'light') msgText = '#2A222E';
+            let msgContent = msg.content || msg.text || ''
+            let glowGradient = '';
+            if (bgObj.value === 'model-glow' && (msg.role === 'assistant' || msg.sender === 'llm')) {
+              let modelName = (msg.model || msg.modelName || msg.model_name || '').toLowerCase()
+              let modelObj = models.find(m => (m.name && m.name.toLowerCase() === modelName) || (m.openRouterName && m.openRouterName.toLowerCase() === modelName))
+              if (!modelObj && modelName) {
+                modelObj = models.find(m => m.openRouterName && modelName.startsWith(m.openRouterName.toLowerCase()))
+              }
+              let family = modelObj ? modelObj.family : null
+              if (family && modelFamilyGlowGradients[family]) {
+                glowGradient = modelFamilyGlowGradients[family]
+              } else {
+                const found = glowOptions.find(opt => opt.value === glowType)
+                glowGradient = found ? found.gradient : glowOptions[0].gradient
+              }
+            } else if (bgObj.value === 'glow-under') {
+              const found = glowOptions.find(opt => opt.value === glowType)
+              glowGradient = found ? found.gradient : glowOptions[0].gradient
+            }
+            return (
+              <motion.div
+                key={key}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.22 }}
+                className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+              >
+                <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full`} style={{ position: (bgObj.value === 'glow-under' || (bgObj.value === 'model-glow' && !isUser)) ? 'relative' : undefined }}>
+                  {(bgObj.value === 'glow-under' || (bgObj.value === 'model-glow' && !isUser)) && (() => {
+                    // Deterministic random offset for each message
+                    const randomOffset = ((Math.sin(idx * 9301 + 49297) * 233280) % 1) * 20 - 10; // -10 to +10
+                    return (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `calc(50% + ${randomOffset}%)`,
+                          top: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: '60%',
+                          height: '60%',
+                          minWidth: 60,
+                          minHeight: 60,
+                          padding: 60,
+                          zIndex: 0,
+                          pointerEvents: 'none',
+                          filter: `blur(100px)`,
+                          willChange: 'filter',
+                          opacity: glowIntensity * 0.7,
+                          background: glowGradient,
+                          borderRadius: '50%',
+                          transition: 'width 0.2s, height 0.2s, filter 0.2s, opacity 0.2s',
+                        }}
+                      />
+                    );
+                  })()}
+                  {(msg.role === 'assistant' || msg.sender === 'llm') && (
+                    <div className='flex items-end mr-2'>
+                      <span className='bg-[#2A222E] p-2 rounded-full'><Bot size={20} className='text-[#BFB3CB]' /></span>
                     </div>
                   )}
-                  {tooltip.visible && tooltip.text && (
-                    <Tooltip x={tooltip.x} y={tooltip.y} text={tooltip.text} />
+                  <div ref={(bgObj.value === 'glow-under' || (bgObj.value === 'model-glow' && !isUser)) ? msgRefCb : undefined} className={`max-w-[70%] px-4 py-2 rounded-xl text-base ${(msg.role === 'user' || msg.sender === 'user') ? 'rounded-br-none self-end' : 'rounded-bl-none self-start'}`}
+                    style={{
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere',
+                      fontFamily,
+                      background: msgBg,
+                      color: msgText,
+                      position: 'relative',
+                      zIndex: 1,
+                      maxWidth: '80vw',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {/* Render a hidden message bubble for width measurement */}
+                    <div
+                      ref={el => { bubbleRefs.current[idx] = el }}
+                      style={{
+                        position: 'absolute',
+                        visibility: 'hidden',
+                        height: 0,
+                        overflow: 'hidden',
+                        pointerEvents: 'none',
+                        whiteSpace: 'pre-wrap',
+                        fontFamily,
+                        fontSize: '1rem',
+                        fontWeight: 400,
+                        maxWidth: '70%',
+                        padding: '0.5rem 1rem',
+                        boxSizing: 'border-box',
+                        borderRadius: 20,
+                        background: msgBg,
+                        color: msgText,
+                      }}
+                    >
+                      {msgContent}
+                    </div>
+                    <ReactMarkdown
+                      rehypePlugins={[rehypeHighlight]}
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({node, inline, className, children, ...props}) {
+                          if (inline) {
+                            return <code className='bg-[#2A222E] px-1 py-0.5 rounded text-[#E0E8FF] font-mono text-sm'>{children}</code>;
+                          }
+                          const codeString = String(children).trim();
+                          const lineCount = codeString.split('\n').length;
+                          const buttonClass = lineCount === 2
+                            ? 'absolute top-6 right-4 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100'
+                            : 'absolute top-3 right-2 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100';
+                          return (
+                            <pre className={`chatMarkdownPre bg-[#2A222E] p-3 rounded-lg overflow-x-auto my-2 relative group ${styles.chatMarkdownPre}`}>
+                              <code className={'text-[#E0E8FF] font-mono text-sm ' + (className || '')}>{children}</code>
+                              <button
+                                className={buttonClass}
+                                onClick={() => handleCopy(codeString)}
+                                type='button'
+                                tabIndex={0}
+                                aria-label='Copy code'
+                                style={{ position: 'absolute' }}
+                              >
+                                <Copy size={16} className='text-[#BFB3CB]' />
+                              </button>
+                            </pre>
+                          );
+                        },
+                        ul({children, ...props}) {
+                          return <ul className='list-disc pl-6 my-2'>{children}</ul>;
+                        },
+                        ol({children, ...props}) {
+                          return <ol className='list-decimal pl-6 my-2'>{children}</ol>;
+                        },
+                        li({children, ...props}) {
+                          return <li className='mb-1'>{children}</li>;
+                        },
+                        strong({children, ...props}) {
+                          return <strong className='font-bold text-[#F9B4D0]'>{children}</strong>;
+                        },
+                        table({children, ...props}) {
+                          return <TableWithActions>{children}</TableWithActions>;
+                        },
+                        thead({children, ...props}) {
+                          return <thead className='bg-[#2A222E]'>{children}</thead>;
+                        },
+                        tbody({children, ...props}) {
+                          return <tbody>{children}</tbody>;
+                        },
+                        tr({children, ...props}) {
+                          return <tr className='border-b border-[#332940] last:border-0'>{children}</tr>;
+                        },
+                        th({children, ...props}) {
+                          return <th className='px-3 py-2 text-left font-semibold text-[#F9B4D0] bg-[#2A222E]'>{children}</th>;
+                        },
+                        td({children, ...props}) {
+                          return <td className='px-3 py-2 text-[#E0E8FF]'>{children}</td>;
+                        },
+                      }}
+                    >{msg.content || msg.text}</ReactMarkdown>
+                  </div>
+                  {(msg.role === 'user' || msg.sender === 'user') && (
+                    <div className='flex items-end ml-2'>
+                      <span className='bg-[#4D1F39] p-2 rounded-full'><User size={20} className='text-[#F4E9EE]' /></span>
+                    </div>
                   )}
                 </div>
-              )}
-              {(msg.role === 'user' || msg.sender === 'user') && idx === arr.length - 1 && (!arr.some((m, i) => i > idx && (m.role === 'assistant' || m.sender === 'llm'))) && !loading && (
-                <div className='flex w-full justify-end mt-2'>
-                  <div className='flex items-center gap-2 bg-[#3B232B] text-[#F9B4D0] px-4 py-2 rounded-xl max-w-[70%]'>
-                    <RefreshCw size={18} className='text-[#F9B4D0]' />
-                    <span>{(() => {
-                      const lastLlmMsg = arr.slice().reverse().find(m => m.role === 'assistant' || m.sender === 'llm');
-                      if (lastLlmMsg && (lastLlmMsg.text || lastLlmMsg.content)) {
-                        const errorText = (lastLlmMsg.text || lastLlmMsg.content).trim();
-                        if (errorText.startsWith('Error:')) {
-                          const reason = errorText.slice(6).trim();
-                          if (reason) return reason;
-                        }
-                      }
-                      return 'Request was unsuccessful. Please try again.';
-                    })()}</span>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          ))}
+                {(msg.role === 'assistant' || msg.sender === 'llm') && (msg.id === lastLlmMsgId || msg.messageId === lastLlmMsgId) && (msg.content || msg.text) && visibleCount === displayedMessages.length && !loading && !branchLoading && (
+                  <ActionButtons
+                    msg={msg}
+                    idx={idx}
+                    lastLlmMsgId={lastLlmMsgId}
+                    isTemporaryChat={isTemporaryChat}
+                    branchDropdownOpen={branchDropdownOpen}
+                    setBranchDropdownOpen={setBranchDropdownOpen}
+                    branchDropdownRef={branchDropdownRef}
+                    branchOptions={branchOptions}
+                    selectedBranchId={selectedBranchId}
+                    setSelectedBranchId={setSelectedBranchId}
+                    branchLoading={branchLoading}
+                    handleCreateBranch={handleCreateBranch}
+                    handleShare={handleShare}
+                    handleCopy={handleCopy}
+                    tooltip={tooltip}
+                    showTooltip={showTooltip}
+                    hideTooltip={hideTooltip}
+                    onReroll={onReroll}
+                  />
+                )}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
         {isThinking && (
           <div className='flex w-full justify-center py-4'>
@@ -360,43 +459,6 @@ function Chat({ modelFamily, messages: propMessages, onReroll, loading, isThinki
         )}
         <div ref={scrollRef} />
       </div>
-      <DialogPrimitive.Root open={rerollOpen} onOpenChange={setRerollOpen}>
-        <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className='fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0' />
-          <AnimatePresence>
-            {rerollOpen && (
-              <DialogPrimitive.Content forceMount asChild>
-                <div className='fixed inset-0 z-50 flex items-center justify-center pointer-events-none'>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
-                    className='rounded-2xl shadow-2xl p-8 max-w-xl w-full focus:outline-none border border-[#332940] backdrop-blur-xl bg-[#201B25]/60 text-[#BFB3CB] pointer-events-auto relative'
-                    style={{ maxWidth: 600, background: 'rgba(32,27,37,0.55)', boxShadow: '0 8px 40px 0 rgba(32,27,37,0.25), 0 1.5px 8px 0 rgba(255,255,255,0.08) inset', backdropFilter: 'blur(24px)' }}
-                  >
-                    {rerollMsg && (
-                      <RerollModelSelector
-                        currentModelName={rerollMsg.model}
-                        onSelect={model => {
-                          setRerollOpen(false);
-                          if (onReroll) onReroll(rerollMsg, model);
-                        }}
-                      />
-                    )}
-                    <DialogPrimitive.Close asChild>
-                      <button className='absolute top-4 right-4 p-2 rounded hover:bg-[#332940]/60 transition'>
-                        <span className='sr-only'>Close</span>
-                        <svg width='20' height='20' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M6 6L14 14M14 6L6 14' stroke='#BFB3CB' strokeWidth='2' strokeLinecap='round' /></svg>
-                      </button>
-                    </DialogPrimitive.Close>
-                  </motion.div>
-                </div>
-              </DialogPrimitive.Content>
-            )}
-          </AnimatePresence>
-        </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
       <DialogPrimitive.Root open={shareOpen} onOpenChange={setShareOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className='fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0' />

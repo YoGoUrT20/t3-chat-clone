@@ -6,8 +6,10 @@ import { Button } from './ui/button';
 import styles from './ModelSelection.module.css';
 import ModelCard from './ModelCard';
 import Tooltip from './Tooltip';
+import { useAuth } from '../AuthContext';
 
 function ModelSelection({ items = models, className, selectedModel, onModelSelect, defaultModel }) {
+  const { user } = useAuth();
   // Custom family order
   const familyOrder = ['claude', 'gemini', 'chatgpt', 'deepseek', 'llama', 'grok', 'qwen'];
   const sortByCustomFamilyOrder = (models) => {
@@ -23,10 +25,15 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
       return a.displayName.localeCompare(b.displayName);
     });
   };
+  const useOwnKey = (user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true';
   const sortedItems = sortByCustomFamilyOrder(items)
     .map(item => {
-      const hasApiKey = false;
-      const hasSubscription = false;
+      let hasApiKey = false;
+      let hasSubscription = false;
+      if (useOwnKey) {
+        hasApiKey = true;
+        hasSubscription = true;
+      }
       const blockedByKey = item.apiKeyRequired && !hasApiKey;
       const blockedByLock = !item.freeAccess && !hasSubscription && !blockedByKey;
       const isBlocked = blockedByKey || blockedByLock;
@@ -140,68 +147,77 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
   return (
     <div className={cn('flex justify-center w-full', className, styles.liquidGlassBg)} style={{ position: 'relative' }}>
       <div className='flex flex-col items-center w-full'>
-      <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[70vh] max-w-[1400px] overflow-y-auto ${styles.ModelSelectionScrollbar} px-4 mt-6`}>
-      <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2'>
-            <div className='backdrop-blur-xl bg-white/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between px-8 py-8 min-h-[120px] pointer-events-auto'>
-              <div className='flex flex-col items-start w-full sm:w-auto mb-4 sm:mb-0'>
-                <span className='text-2xl font-bold text-zinc-900 dark:text-zinc-100'>Subscription</span>
-                <span className='text-lg text-zinc-700 dark:text-zinc-300 mt-1'>9$ to access all models</span>
-              </div>
-              <div className='flex flex-col items-end w-full sm:w-auto'>
-                <Button className='text-base font-semibold px-8 py-3 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200'>Subscribe</Button>
-                <span className='text-sm text-zinc-600 dark:text-zinc-400 mt-2 self-end'>9$/month</span>
+        {useOwnKey && (
+          <div className={`w-full max-w-2xl flex items-center gap-2 px-5 py-3 mb-4 rounded-xl border border-[#ececec] dark:border-[#232228] bg-white/70 dark:bg-zinc-900/60 shadow ${styles.liquidGlassBg}`}
+               style={{ color: '#232228', fontWeight: 600, fontSize: '1rem' }}>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="flex-shrink-0 text-[#DC749E] dark:text-[#F9B4D0]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+            <span className='flex-1 text-left text-[#232228] dark:text-[#ececec]'>Using your own OpenRouter API key. All models are available.</span>
+          </div>
+        )}
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[70vh] max-w-[1400px] overflow-y-auto ${styles.ModelSelectionScrollbar} px-4 mt-6`}>
+        {(!user || user.status !== 'premium') && (
+        <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2'>
+              <div className='backdrop-blur-xl bg-white/60 dark:bg-zinc-900/60 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between px-8 py-8 min-h-[120px] pointer-events-auto'>
+                <div className='flex flex-col items-start w-full sm:w-auto mb-4 sm:mb-0'>
+                  <span className='text-2xl font-bold text-zinc-900 dark:text-zinc-100'>Subscription</span>
+                  <span className='text-lg text-zinc-700 dark:text-zinc-300 mt-1'>9$ to access all models</span>
+                </div>
+                <div className='flex flex-col items-end w-full sm:w-auto'>
+                  <Button className='text-base font-semibold px-8 py-3 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200'>Subscribe</Button>
+                  <span className='text-sm text-zinc-600 dark:text-zinc-400 mt-2 self-end'>9$/month</span>
+                </div>
               </div>
             </div>
+        )}
+        <div className={`col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2 flex justify-start ${user && user.status === 'premium' ? 'mt-10' : 'mt-6'}`}>
+              <input
+                ref={searchInputRef}
+                type='text'
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder='Search models...'
+                className='w-full max-w-md px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500 text-base mb-2 shadow-sm'
+                aria-label='Search models'
+                autoComplete='off'
+              />
+            </div>
+            {filteredItems.map((item) => (
+              <ModelCard
+                key={item.name}
+                item={item}
+                selectedModel={effectiveSelectedModel}
+                onModelSelect={onModelSelect}
+                iconRefs={iconRefs}
+                nameRefs={nameRefs}
+                handleNameMouseEnter={handleNameMouseEnter}
+                handleNameMouseLeave={handleNameMouseLeave}
+                handleMouseEnter={handleMouseEnter}
+                handleMouseLeave={handleMouseLeave}
+              />
+            ))}
           </div>
-          <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2 flex justify-start'>
-            <input
-              ref={searchInputRef}
-              type='text'
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              placeholder='Search models...'
-              className='w-full max-w-md px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500 text-base mb-2 shadow-sm'
-              aria-label='Search models'
-              autoComplete='off'
-            />
-          </div>
-          {filteredItems.map((item) => (
-            <ModelCard
-              key={item.name}
-              item={item}
-              selectedModel={effectiveSelectedModel}
-              onModelSelect={onModelSelect}
-              iconRefs={iconRefs}
-              nameRefs={nameRefs}
-              handleNameMouseEnter={handleNameMouseEnter}
-              handleNameMouseLeave={handleNameMouseLeave}
-              handleMouseEnter={handleMouseEnter}
-              handleMouseLeave={handleMouseLeave}
-            />
-          ))}
+          {tooltip.visible && tooltip.text && createPortal(
+            <Tooltip x={tooltip.x} y={tooltip.y - 12} text={tooltip.text} style={{maxWidth: 250, whiteSpace: 'pre-line'}} />, document.body
+          )}
+          {nameTooltip.visible && nameTooltip.text && createPortal(
+            <Tooltip x={nameTooltip.x} y={nameTooltip.y - 8} text={nameTooltip.text} style={{maxWidth: 300, whiteSpace: 'pre-line'}} />, document.body
+          )}
         </div>
-        {tooltip.visible && tooltip.text && createPortal(
-          <Tooltip x={tooltip.x} y={tooltip.y - 12} text={tooltip.text} style={{maxWidth: 250, whiteSpace: 'pre-line'}} />, document.body
-        )}
-        {nameTooltip.visible && nameTooltip.text && createPortal(
-          <Tooltip x={nameTooltip.x} y={nameTooltip.y - 8} text={nameTooltip.text} style={{maxWidth: 300, whiteSpace: 'pre-line'}} />, document.body
-        )}
+        {/* Gradient overlay at the bottom */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '140px',
+            pointerEvents: 'none',
+            zIndex: 30,
+            background: 'linear-gradient(to top, rgba(24,24,27,0.55) 20%, rgba(24,24,27,0.25) 60%, rgba(24,24,27,0.0) 100%)',
+          }}
+        />
       </div>
-      {/* Gradient overlay at the bottom */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: '140px',
-          pointerEvents: 'none',
-          zIndex: 30,
-          background: 'linear-gradient(to top, rgba(24,24,27,0.55) 20%, rgba(24,24,27,0.25) 60%, rgba(24,24,27,0.0) 100%)',
-        }}
-      />
-    </div>
   );
 }
 

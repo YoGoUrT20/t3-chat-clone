@@ -4,6 +4,7 @@ import Dropdown from './Dropdown'
 import { Switch } from './ui/switch'
 import Iso6391 from 'iso-639-1'
 import { models } from '../models'
+import { useIsMobile } from '../hooks/use-mobile'
 
 export default function SettingsProfileTab({
   systemPrompt,
@@ -28,8 +29,9 @@ export default function SettingsProfileTab({
   setDefaultModel,
   onDefaultModelChange
 }) {
+  const isMobile = useIsMobile()
   return (
-    <div className='w-full p-6 pointer-events-none bg-transparent shadow-none'>
+    <div className={`w-full ${isMobile ? 'p-2' : 'p-6'} pointer-events-none bg-transparent shadow-none`}>
       <div className='w-full relative'>
         <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] mb-1 block text-left pointer-events-auto' style={{display:'flex',alignItems:'center',gap:'6px'}}>
           System Prompt
@@ -38,7 +40,7 @@ export default function SettingsProfileTab({
             onMouseEnter={e => {
               const rect = e.currentTarget.getBoundingClientRect();
               setTooltipX(rect.left + rect.width / 2);
-              setTooltipY(rect.bottom + window.scrollY);
+              setTooltipY(rect.bottom);
               setShowTooltip(true);
             }}
             onMouseLeave={() => setShowTooltip(false)}
@@ -54,7 +56,7 @@ export default function SettingsProfileTab({
           onChange={e => {
             setSystemPrompt(e.target.value)
           }}
-          className='w-full px-3 py-2 rounded-md border-2 border-[#d1b3c4] dark:border-[#a97ca5] bg-[#f5f5fa] dark:bg-[#232228] text-[#0e0e10] dark:text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-sm pointer-events-auto resize-none'
+          className={`w-full px-3 py-2 rounded-md border-2 border-[#d1b3c4] dark:border-[#a97ca5] bg-[#f5f5fa] dark:bg-[#232228] text-[#0e0e10] dark:text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-sm pointer-events-auto resize-none ${isMobile ? 'text-base' : ''}`}
           placeholder='Enter your system prompt...'
           rows={5}
         />
@@ -97,7 +99,7 @@ export default function SettingsProfileTab({
           />
           <label htmlFor='reasoning-switch' className='text-sm text-[#90808A] dark:text-[#bdbdbd] cursor-pointer'>Show model reasoning/thinking</label>
         </div>
-        <div className='w-full mt-4 flex flex-col gap-2 rounded-lg border border-[#ececec] dark:border-[#232228] bg-[#f5f5fa] dark:bg-[#232228] p-4'>
+        <div className={`w-full mt-4 flex flex-col gap-2 rounded-lg border border-[#ececec] dark:border-[#232228] bg-[#f5f5fa] dark:bg-[#232228] p-4 ${isMobile ? 'text-base' : ''}`}>
           <div className='flex flex-row items-center gap-4'>
             <span className='text-xs text-[#90808A] dark:text-[#bdbdbd] min-w-[120px]'>Total tokens used</span>
             <span className='font-semibold text-[#0e0e10] dark:text-white'>{userStats.totalTokens.toLocaleString()}</span>

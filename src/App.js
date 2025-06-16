@@ -26,38 +26,30 @@ function AppWithRouter() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Listen for t3-new-chat event and expose window.t3NewChat
+  // Listen for new-chat event and expose window.newChat
   React.useEffect(() => {
-    window.t3NewChat = () => { window.t3PendingReset = true; };
-    const listener = () => { window.t3PendingReset = true; };
-    window.addEventListener('t3-new-chat', listener);
+    window.newChat = () => { window.pendingReset = true; };
+    const listener = () => { window.pendingReset = true; };
+    window.addEventListener('new-chat', listener);
     return () => {
-      window.removeEventListener('t3-new-chat', listener);
-      delete window.t3NewChat;
+      window.removeEventListener('new-chat', listener);
+      delete window.newChat;
     };
   }, []);
 
   // Watch for location change to '/' and pending reset
   React.useEffect(() => {
-    if (location.pathname === '/' && window.t3PendingReset) {
+    if (location.pathname === '/' && window.pendingReset) {
       setResetKey(prev => prev + 1);
-      window.t3PendingReset = false;
+      window.pendingReset = false;
     }
   }, [location]);
 
-  // Determine if chat is open
-  const isChatOpen = location.pathname.startsWith('/chat/');
-  // So bad but works
   React.useEffect(() => {
-    if (location.pathname === '/') {
-      document.body.classList.add('no-scroll');
-    } else {
-      document.body.classList.remove('no-scroll');
+    if (location.pathname !== '/settings') {
+      localStorage.setItem('prev_path', location.pathname)
     }
-    return () => {
-      document.body.classList.remove('no-scroll');
-    };
-  }, [location.pathname]);
+  }, [location.pathname])
 
   return (
     <AuthProvider>
@@ -71,9 +63,8 @@ function AppWithRouter() {
         <Route path="/settings" element={<SettingsSubscriptionPage />} />
         <Route path="/chat/:id" element={
           <motion.div
-            className="main-bg text-white flex h-screen overflow-hidden"
-            initial={{ marginTop: 15 }}
-            animate={{ marginTop: isChatOpen ? 0 : 15 }}
+            className="main-bg text-white flex overflow-hidden"
+            style={{ height: 'calc(100vh - 15px)' }}
             transition={{ duration: 0.4, ease: 'easeInOut' }}
           >
             <style>{`
@@ -91,9 +82,8 @@ function AppWithRouter() {
         } />
         <Route path="/" element={
           <motion.div
-            className="main-bg text-white flex h-screen overflow-hidden"
-            initial={{ marginTop: 15 }}
-            animate={{ marginTop: isChatOpen ? 0 : 15 }}
+            className="main-bg text-white flex overflow-hidden"
+            style={{ height: 'calc(100vh - 15px)' }}
             transition={{ duration: 0.4, ease: 'easeInOut' }}
           >
             <style>{`
@@ -111,9 +101,8 @@ function AppWithRouter() {
         } />
         <Route path="/shared/:id" element={
           <motion.div
-            className="main-bg text-white flex h-screen overflow-hidden"
-            initial={{ marginTop: 15 }}
-            animate={{ marginTop: 0 }}
+            className="main-bg text-white flex overflow-hidden"
+            style={{ height: 'calc(100vh - 15px)' }}
             transition={{ duration: 0.4, ease: 'easeInOut' }}
           >
             <style>{`
@@ -136,8 +125,11 @@ function AppWithRouter() {
 
 export default function App() {
   return (
-    <Router>
-      <AppWithRouter />
-    </Router>
+    <>
+      <div style={{ height: '15px', width: '100%', background: 'transparent' }} />
+      <Router>
+        <AppWithRouter />
+      </Router>
+    </>
   );
 }

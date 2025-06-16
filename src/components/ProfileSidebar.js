@@ -7,8 +7,10 @@ import toast from 'react-hot-toast'
 import Tooltip from './Tooltip'
 import EditShortcutsDialog from './EditShortcutsDialog'
 import { getFirestore, doc, updateDoc } from 'firebase/firestore'
+import { useIsMobile } from '../hooks/use-mobile'
 
 export default function ProfileSidebar({ user, loading, signOutUser, messagesLeft, resetAt, now }) {
+  const isMobile = useIsMobile()
   const [showSignOutDialog, setShowSignOutDialog] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [tooltipAnchor, setTooltipAnchor] = useState(null)
@@ -30,7 +32,7 @@ export default function ProfileSidebar({ user, loading, signOutUser, messagesLef
 
   if (loading || !user) {
     return (
-      <div className='absolute inset-0 w-full h-full flex flex-col items-center justify-center transition-opacity duration-400 opacity-100 pointer-events-auto' style={{zIndex:1}}>
+      <div className={`${isMobile ? 'relative w-full h-auto flex flex-col items-center justify-center p-2' : 'absolute inset-0 w-full h-full flex flex-col items-center justify-center'} transition-opacity duration-400 opacity-100 pointer-events-auto`} style={isMobile ? {} : {zIndex:1}}>
         <div className='flex flex-col items-center w-full animate-pulse'>
           <div className='w-28 h-28 rounded-full bg-gray-200 dark:bg-[#232228] mb-3' />
           <div className='h-5 w-24 bg-gray-200 dark:bg-[#232228] rounded mb-2' />
@@ -52,7 +54,7 @@ export default function ProfileSidebar({ user, loading, signOutUser, messagesLef
   }
 
   return (
-    <div className='absolute inset-0 w-full h-full flex flex-col items-center justify-center transition-opacity duration-400 opacity-100 pointer-events-auto' style={{zIndex:2}}>
+    <div className={`${isMobile ? 'relative w-full h-auto flex flex-col items-center justify-center p-2' : 'absolute inset-0 w-full h-full flex flex-col items-center justify-center'} transition-opacity duration-400 opacity-100 pointer-events-auto`} style={isMobile ? {} : {zIndex:2}}>
       <img
         src={user.photoURL}
         alt={user.displayName}

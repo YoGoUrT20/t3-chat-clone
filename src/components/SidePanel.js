@@ -19,6 +19,7 @@ import {
   HelpCircle,
   Search,
   LogIn,
+  BadgeCheck,
 } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -155,7 +156,7 @@ function SidePanel({ onReset, visible, setVisible }) {
     <SidebarProvider defaultOpen={visible}>
       <Sidebar>
         <SidebarHeader>
-          <Button onClick={() => { window.t3PendingReset = true; navigate('/', { replace: true }); }} className='w-full flex items-center gap-2 py-2 justify-start pl-16 mt-6'>
+          <Button onClick={() => { window.pendingReset = true; navigate('/', { replace: true }); }} className='w-full flex items-center gap-2 py-2 justify-start pl-16 mt-6'>
             <span className='flex items-center gap-2'>
               <img src='/quiver.svg' alt='Quiver Logo' width={28} height={28} className='mr-2' style={{ display: 'inline-block' }} />
               <span className='text-xl font-bold tracking-tight text-gray-900 dark:text-white'>Quiver</span>
@@ -221,7 +222,7 @@ function SidePanel({ onReset, visible, setVisible }) {
                               >
                                 <MessagesSquare className='h-4 w-4 mr-3 flex-shrink-0' />
                                 <span className='truncate text-left chat-title-name' style={{ width: 120, display: 'inline-block' }}>
-                                  {truncate(conv.name || conv.messages?.[0]?.content || 'Conversation', 40)}
+                                {truncate(conv.name || conv.messages?.[0]?.content || 'Conversation', 40)}
                                 </span>
                                 <span className='text-xs text-gray-400 dark:text-gray-500 truncate chat-title-model text-right' style={{ width: 80, display: 'inline-block', marginLeft: 8 }}>
                                   {truncate(conv.modelDisplayName || '', 20)}
@@ -269,7 +270,11 @@ function SidePanel({ onReset, visible, setVisible }) {
               />
               <div className='flex flex-col items-start ml-2 justify-center'>
                 <span className='font-medium text-base text-gray-900 dark:text-white'>{user.displayName}</span>
-                <span className='text-xs text-gray-500 dark:text-gray-400'>Free</span>
+                {user.status === 'premium' ? (
+                  <span className='text-xs flex items-center gap-1 text-[#DC749E] font-bold'><BadgeCheck size={14} />Premium</span>
+                ) : (
+                  <span className='text-xs text-gray-500 dark:text-gray-400'>Free</span>
+                )}
               </div>
             </Button>
           ) : loading ? null : (
