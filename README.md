@@ -17,6 +17,7 @@
 - History extraction
 - Web search
 - Temporary chats
+- Multiple tabs Synchronization
 - & more
 ## Getting Started
 

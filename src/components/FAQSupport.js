@@ -14,7 +14,7 @@ function FAQSupport() {
     return (
         <div className='w-full main-bg'>
             <div className='flex justify-center items-center w-full min-h-screen'>
-                <div className='absolute top-6 left-6 z-20'>
+                <div className='fixed top-4 left-4 z-20 sm:top-6 sm:left-6'>
                     <LiquidGlassButton
                         onClick={() => navigate('/')}
                         icon={<ArrowLeft size={18} />}
@@ -22,15 +22,15 @@ function FAQSupport() {
                         variant={'rect'}
                     />
                 </div>
-                <div className='w-full max-w-[1200px] flex flex-row bg-transparent rounded-xl shadow-none border-none min-h-[500px]'>
-                    <div className='flex flex-col items-center justify-start pt-16 px-10 bg-transparent relative min-w-[220px]' style={{minHeight:220}} />
-                    <div className='flex-1 flex flex-col items-start justify-start pt-10 pl-8 pr-8 relative'>
+                <div className='w-full max-w-[1200px] flex flex-col md:flex-row bg-transparent rounded-xl shadow-none border-none min-h-[500px]'>
+                    <div className='flex flex-col items-center justify-start pt-8 px-4 md:pt-16 md:px-10 bg-transparent relative min-w-0 md:min-w-[220px]' style={{minHeight:220}} />
+                    <div className='flex-1 flex flex-col items-start justify-start pt-6 pl-2 pr-2 md:pt-10 md:pl-8 md:pr-8 relative w-full'>
                         <SettingsTabs
                             tabs={tabs}
                             activeIndex={activeIndex}
                             setActiveIndex={i => navigate(tabRoutes[i])}
                         />
-                        <div className='w-full mt-8 min-h-[300px] min-w-[350px] rounded-xl shadow border border-[#ececec] dark:border-[#232228] flex flex-col transition-none bg-transparent'>
+                        <div className='w-full mt-4 md:mt-8 min-h-[200px] md:min-h-[300px] min-w-0 md:min-w-[350px] rounded-xl shadow border border-[#ececec] dark:border-[#232228] flex flex-col transition-none bg-transparent'>
                             <style>{`
                                 ::-webkit-scrollbar-thumb {
                                     background: #483A44;
@@ -56,9 +56,9 @@ function FAQSupport() {
                                     scrollbar-color: #483A44 #21141E;
                                 }
                             `}</style>
-                            <div className='prose prose-pink prose-tos max-w-5xl w-full mx-auto p-4 dark:prose-invert prose-pre:m-0 prose-pre:bg-transparent prose-pre:p-0'>
+                            <div className='prose prose-pink prose-tos max-w-full md:max-w-5xl w-full mx-auto p-2 md:p-4 dark:prose-invert prose-pre:m-0 prose-pre:bg-transparent prose-pre:p-0'>
                                 <h1 className='text-4xl font-black mb-8 text-[#FAF7FD] flex items-center gap-3'><HelpCircle size={32} className='inline-block text-[#DC749E]' />FAQ & Support</h1>
-                                <div className='text-[#FAF7FD] mb-10 text-base'>Last Updated: 2025-02-14</div>
+                                <div className='text-[#FAF7FD] mb-10 text-base'>Last Updated: 2025-06-18</div>
                                 <h2 className='text-lg font-bold mb-4 text-[#FAF7FD]'>Frequently Asked Questions</h2>
                                 <ul className='space-y-6 pl-2 w-full'>
                                     <li className='flex items-start'>

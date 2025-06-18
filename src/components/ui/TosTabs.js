@@ -40,7 +40,7 @@ export default function SettingsTabs({ tabs, activeIndex, setActiveIndex }) {
           opacity: hoveredIndex !== null ? 1 : 0,
         }}
       />
-      <div className='relative flex space-x-[6px] items-center'>
+      <div className='relative flex space-x-[6px] items-center overflow-x-auto scrollbar-hide md:overflow-x-visible md:scrollbar-default'>
         {tabs.map((tab, index) => (
           <div
             key={index}
@@ -58,6 +58,10 @@ export default function SettingsTabs({ tabs, activeIndex, setActiveIndex }) {
           </div>
         ))}
       </div>
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   )
 } 

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Form as UIForm } from './ui/form';
 import { Button } from './ui/button';
-import { SlidersHorizontal, ArrowUp, Paperclip } from 'lucide-react';
+import { SlidersHorizontal, ArrowUp, Paperclip, Ghost, Globe } from 'lucide-react';
 import AutoResizeTextarea from './auto-resize-textarea';
 import ImageUploadArea from './image-upload-area';
 import { formSchema } from '../lib/form-schema';
@@ -17,8 +17,9 @@ import ModelSelectionMobile from './ModelSelectionMobile';
 import Tooltip from './Tooltip';
 import toast from 'react-hot-toast';
 import ToolsMenu from './ToolsMenu';
+import { createPortal } from 'react-dom';
 
-function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message, setMessage, selectedModel, setSelectedModel, isTemporaryChat, onStartTemporaryChat, useWebSearch, setUseWebSearch }) {
+function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message, setMessage, selectedModel, setSelectedModel, isTemporaryChat, onStartTemporaryChat, useWebSearch, setUseWebSearch, messagesLeft, resetAt, user }) {
   const [previewFiles, setPreviewFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState(null);
@@ -36,6 +37,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
   const prevIsLoading = useRef(isLoading);
   const toolsDropdownRef = useRef(null);
   const toolsButtonRef = useRef(null);
+  const [iconTooltip, setIconTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 
   // Pick a random placeholder only once per mount
   const randomPlaceholderRef = useRef(MESSAGE_PLACEHOLDERS[Math.floor(Math.random() * MESSAGE_PLACEHOLDERS.length)]);
@@ -322,6 +324,55 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
           boxShadow: '0 -2px 24px 0 rgba(0,0,0,0.25)',
           transformOrigin: 'bottom center'
         } : {}}>
+        {/* Model info bar */}
+        {selectedModel && (
+          <div
+            className={`flex items-center justify-start max-w-2xl mx-auto mb-1 px-2`}
+            style={{
+              minHeight: 28,
+              borderRadius: 8,
+              padding: '0.15rem 0.7rem',
+              zIndex: 30,
+            }}
+          >
+            <span
+              className='flex items-center gap-2 bg-[#F9B4D0]/30 text-white px-2 py-0.5 rounded text-xs font-bold'
+              style={{ fontSize: 14, fontWeight: 600, letterSpacing: 0.1 }}
+            >
+              {selectedModel.displayName}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: '0.5rem' }}>
+                {isTemporaryChat && (
+                  <span
+                    onMouseEnter={e => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Temporary chat (messages are not saved)' });
+                    }}
+                    onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
+                    style={{ display: 'flex', alignItems: 'center' }}
+                  >
+                    <Ghost size={17} style={{ color: '#fff', opacity: 0.95 }} />
+                  </span>
+                )}
+                {useWebSearch && (
+                  <span
+                    onMouseEnter={e => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Web search enabled for this chat' });
+                    }}
+                    onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
+                    style={{ display: 'flex', alignItems: 'center' }}
+                  >
+                    <Globe size={17} style={{ color: '#fff', opacity: 0.95 }} />
+                  </span>
+                )}
+              </span>
+            </span>
+          </div>
+        )}
+        {iconTooltip.visible && iconTooltip.text && createPortal(
+          <Tooltip x={iconTooltip.x} y={iconTooltip.y} text={iconTooltip.text} />,
+          document.body
+        )}
         <div className={cn("relative max-w-2xl mx-auto message-input-container", isMobile && "flex flex-col-reverse")}>
           {/* Liquid glass border effect */}
           <div className="absolute inset-0 z-0 rounded-[24px] pointer-events-none border-2 border-white/60 bg-gradient-to-br from-white/10 via-white/5 to-white/0 backdrop-blur-2xl backdrop-brightness-125" style={{ boxShadow: '0 0 16px 2px rgba(255,255,255,0.10), 0 4px 32px 0 rgba(0,0,0,0.18)' }} />
@@ -378,6 +429,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
                       onClick={() => {
                         setShowOptions((prev) => {
                           const next = !prev;
+                          if (next) setShowTools(false);
                           if (typeof onOpenOptions === 'function') {
                             onOpenOptions(next);
                           }
@@ -431,6 +483,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
                       showTools={showTools}
                       setShowTools={(open) => {
                         setShowTools(open);
+                        if (open) setShowOptions(false);
                         if (typeof onOpenTools === 'function') {
                           onOpenTools(open);
                         }
@@ -503,6 +556,9 @@ MessageInput.propTypes = {
   onStartTemporaryChat: PropTypes.func,
   useWebSearch: PropTypes.bool.isRequired,
   setUseWebSearch: PropTypes.func.isRequired,
+  messagesLeft: PropTypes.number,
+  resetAt: PropTypes.string,
+  user: PropTypes.object,
 };
 
 export default MessageInput; 

@@ -1,0 +1,57 @@
+.mainContainer {
+    position: relative;
+    overflow: hidden;
+}
+
+.chatContainer {
+    height: 100vh;
+    max-height: 100vh;
+    width: 100%;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.bottomStickyContainer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: transparent;
+    pointer-events: none;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.inputWrapper {
+    pointer-events: auto;
+    margin-bottom: 0;
+    width: 100%;
+    max-width: 900px;
+    margin-left: 0;
+}
+
+.modelInfoBar {
+    background: transparent;
+    pointer-events: auto;
+    width: 100%;
+    max-width: 900px;
+    margin-left: 0;
+}
+
+@media (min-width: 1025px) {
+  .bottomStickyContainer {
+    left: 18rem;
+    width: calc(100% - 18rem);
+  }
+  .inputWrapper, .modelInfoBar {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .modelInfoBar {
+    padding-left: 1.5rem;
+  }
+} 

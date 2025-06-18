@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Newspaper, GraduationCap, Sparkles, MessagesSquare,  Settings, Ghost, Globe, LogIn } from 'lucide-react';
+import { Newspaper, GraduationCap, Sparkles, MessagesSquare,  Settings, LogIn } from 'lucide-react';
 import MessageInput from './MessageInput';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../AuthContext';
@@ -7,7 +7,7 @@ import { CATEGORY_QUESTIONS, defaultQuestions, backgroundOptions } from '../cons
 import Chat from './Chat';
 import { models } from '../models';
 import LiquidGlassButton from './LiquidGlassButton';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import MobileHistory from './MobileHistory';
@@ -17,9 +17,9 @@ import handleReroll from '../lib/handleReroll';
 import handleSubmit from '../lib/handleSubmit';
 import FirestoreStreamListener from './FirestoreStreamListener';
 import { matchModelFromName } from '../lib/utils';
-import styles from './ModelSelection.module.css';
+import componentStyles from './ModelSelection.module.css';
 import Tooltip from './Tooltip';
-import { createPortal } from 'react-dom';
+import styles from './MainContent.module.css';
 
 function MainContent({ showSidebar, setShowSidebar }) {
   const { id } = useParams();
@@ -49,12 +49,18 @@ function MainContent({ showSidebar, setShowSidebar }) {
   const [selectedBranchId, setSelectedBranchId] = useState('root');
   const [branchLoading, setBranchLoading] = useState(true);
   const [isTemporaryChat, setIsTemporaryChat] = useState(!user);
+  const loadedChatIdRef = useRef(null);
   const [useWebSearch, setUseWebSearch] = useState(false);
   const isMobile = useIsMobile();
+  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const [showMobileHistory, setShowMobileHistory] = useState(false);
   const chatContainerRef = useRef(null);
   const isTemporaryChatRef = useRef(isTemporaryChat)
   const [firestoreStreamActive, setFirestoreStreamActive] = useState(false);
+  const firestoreStreamActiveRef = useRef(firestoreStreamActive);
+  useEffect(() => {
+    firestoreStreamActiveRef.current = firestoreStreamActive;
+  }, [firestoreStreamActive]);
   const [firestoreStreamInfo, setFirestoreStreamInfo] = useState({ streamId: null, messageId: null });
   const lastPlaceholderIdRef = useRef(null);
   const lastStreamMessageIdRef = useRef(null);
@@ -62,7 +68,6 @@ function MainContent({ showSidebar, setShowSidebar }) {
   const firestoreStreamInfoRef = useRef(firestoreStreamInfo);
   const webSearchEnableToastShown = useRef(false);
   const webSearchDisableToastShown = useRef(false);
-  const [iconTooltip, setIconTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
   const [modelSelectionOpen, setModelSelectionOpen] = useState(false);
   const [toolSelectionOpen, setToolSelectionOpen] = useState(false);
 
@@ -75,6 +80,10 @@ function MainContent({ showSidebar, setShowSidebar }) {
   }, [firestoreStreamInfo]);
 
   useEffect(() => { isTemporaryChatRef.current = isTemporaryChat }, [isTemporaryChat])
+
+  useEffect(() => {
+    setInitialRenderComplete(true);
+  }, []);
 
   // Always force temporary chat for guests
   useEffect(() => {
@@ -106,14 +115,14 @@ function MainContent({ showSidebar, setShowSidebar }) {
     }
     setChatLoading(true);
     const db = getFirestore();
-    getDoc(doc(db, 'conversations', id)).then(async convSnap => {
+    const unsubscribe = onSnapshot(doc(db, 'conversations', id), async (convSnap) => {
+      if (firestoreStreamActiveRef.current) {
+        setChatLoading(false);
+        return;
+      }
       let loadedMessages = [];
       if (convSnap.exists()) {
         const data = convSnap.data();
-        if (firestoreStreamActive) {
-          setChatLoading(false);
-          return;
-        }
         loadedMessages = (data.messages || []).map((msg, i) => {
           let thinking = '';
           let mainContent = msg.content || msg.text || '';
@@ -178,7 +187,10 @@ function MainContent({ showSidebar, setShowSidebar }) {
           if (res.ok) {
             const branchData = await res.json();
             setBranches(branchData.branches || {});
-            setSelectedBranchId(Object.keys(branchData.branches || { root: 1 })[0] || 'root');
+            if (loadedChatIdRef.current !== id) {
+              setSelectedBranchId(Object.keys(branchData.branches || { root: 1 })[0] || 'root');
+              loadedChatIdRef.current = id;
+            }
             setBranchLoading(false);
           } else {
             setBranches({});
@@ -194,6 +206,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
       }
       setChatLoading(false);
     });
+    return () => unsubscribe();
   }, [id, user]);
 
   // Effect 2: Check Firestore stream doc and add placeholder/listener if needed
@@ -488,6 +501,10 @@ function MainContent({ showSidebar, setShowSidebar }) {
     fetchQuota();
   }, [user, id]);
 
+  if (!initialRenderComplete) {
+    return null; // or a loading spinner
+  }
+
   return (
     <>
       {isMobile && (
@@ -547,8 +564,8 @@ function MainContent({ showSidebar, setShowSidebar }) {
         )}
       </AnimatePresence>
       <motion.main
-        className="flex flex-col min-h-screen w-full px-0 md:px-10 pt-2 md:pt-10 pb-0 relative rounded-xl"
-        style={Object.assign({}, bgObj.style, !isMobile ? { marginLeft: 'calc(18rem + 55px)' } : {})}
+        className={`flex flex-col h-screen w-full px-0 lg:px-10 pt-2 lg:pt-10 pb-0 relative rounded-xl ${!isMobile ? styles.mainContainer : ''}`}
+        style={Object.assign({}, bgObj.style, !isMobile ? { marginLeft: 'calc(18rem)' } : {})}
       >
         {bgObj.image && (
           <div className='w-full flex justify-center mt-4'>
@@ -557,7 +574,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
         )}
         <header className="flex justify-end items-center mb-10"></header>
 
-        <div className="flex-1 flex flex-col items-center w-full">
+        <div className="flex-1 flex flex-col items-center w-full min-h-0">
           {!firstMessageSent && !message.trim() && (
             <div className="w-full flex justify-center items-center animate-scale-in" style={{ marginTop: '100px', minHeight: 320 }}>
               <div style={{ maxWidth: 430, width: '100%' }}>
@@ -617,12 +634,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
           {firstMessageSent && !chatLoading && (
             <div
               ref={chatContainerRef}
-              className={`flex-1 w-full flex flex-col items-center overflow-y-auto hide-scrollbar`}
-              style={
-                isMobile
-                  ? { maxHeight: 'calc(100vh - 100px)', height: 'calc(100vh - 100px)', overflowY: 'auto', width: '100%' }
-                  : { maxHeight: 'calc(100vh - 175px)', width: '100%' }
-              }
+              className={`flex-1 w-full flex flex-col items-center overflow-y-auto hide-scrollbar ${!isMobile ? styles.chatContainer : ''}`}
             >
               <Chat
                 modelFamily={lastUsedModelFamily}
@@ -659,7 +671,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
         {/* Banner for terms and privacy policy, always above the input */}
         {!user && !firstMessageSent && !modelSelectionOpen && !toolSelectionOpen && (
           <div
-            className={`flex items-center justify-center mx-auto mb-6 ${styles.liquidGlassCard}`}
+            className={`flex items-center justify-center mx-auto mb-6 ${componentStyles.liquidGlassCard}`}
             style={{
               width: isMobile ? 'calc(100% - 40px)' : '430px',
               maxWidth: '430px',
@@ -679,97 +691,28 @@ function MainContent({ showSidebar, setShowSidebar }) {
           </div>
         )}
 
-        {/* Current model display above MessageInput, compact, left-shifted, beige text, underlined, with tooltip, no icon */}
-        {selectedModel && (
-          <div
-            className={`z-30 flex items-center justify-center ${isMobile ? '' : 'fixed'} ${isMobile ? '' : 'bottom-[100px] md:bottom-[85px]'}`}
-            style={
-              isMobile
-                ? {
-                    position: 'fixed',
-                    bottom: 80,
-                    left: 0,
-                    width: '100%',
-                    minHeight: 28,
-                    borderRadius: 8,
-                    padding: '0.15rem 0.7rem',
-                    marginBottom: 0,
-                    justifyContent: 'flex-start',
-                    display: 'flex',
-                    zIndex: 30,
-                  }
-                : {
-                    left: 850, // minimum left value in px
-                    width: 'auto',
-                    minHeight: 28,
-                    borderRadius: 8,
-                    padding: '0.15rem 0.7rem',
-                    pointerEvents: 'none',
-                    position: 'fixed',
-                    bottom: '85px',
-                    zIndex: 30,
-                  }
-            }
-          >
-            <span
-              className='flex items-center gap-2 bg-[#F9B4D0]/30 text-white px-2 py-0.5 rounded text-xs font-bold ml-2'
-              style={{ pointerEvents: 'auto', fontSize: 14, fontWeight: 600, letterSpacing: 0.1 }}
-            >
-              {selectedModel.displayName}
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: '0.5rem' }}>
-                {isTemporaryChat && (
-                  <span
-                    onMouseEnter={e => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Temporary chat (messages are not saved)' });
-                    }}
-                    onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
-                    style={{ display: 'flex', alignItems: 'center' }}
-                  >
-                    <Ghost size={17} style={{ color: '#fff', opacity: 0.95 }} />
-                  </span>
-                )}
-                {useWebSearch && (
-                  <span
-                    onMouseEnter={e => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Web search enabled for this chat' });
-                    }}
-                    onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
-                    style={{ display: 'flex', alignItems: 'center' }}
-                  >
-                    <Globe size={17} style={{ color: '#fff', opacity: 0.95 }} />
-                  </span>
-                )}
-              </span>
-            </span>
-            {iconTooltip.visible && iconTooltip.text && createPortal(
-              <Tooltip x={iconTooltip.x} y={iconTooltip.y} text={iconTooltip.text} />,
-              document.body
-            )}
-          </div>
-        )}
-
         {/* MessageInput always at the bottom, outside the flex-1 content */}
-        <div className="w-full" style={{ position: 'sticky', bottom: 0, zIndex: 40 }}>
-          <MessageInput
-            message={message}
-            setMessage={setMessage}
-            onFirstMessageSent={() => setFirstMessageSent(true)}
-            onOpenOptions={handleModelSelectionOpen}
-            onOpenTools={handleToolSelectionOpen}
-            onSubmit={handleSubmitWrapper}
-            isLoading={loading}
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-            isTemporaryChat={isTemporaryChat}
-            onStartTemporaryChat={handleToggleTemporaryChat}
-            useWebSearch={useWebSearch}
-            setUseWebSearch={setUseWebSearch}
-            messagesLeft={messagesLeft}
-            resetAt={resetAt}
-            user={user}
-          />
+        <div className={`w-full ${!isMobile ? styles.bottomStickyContainer : ''}`}>
+          <div className={styles.inputWrapper}>
+            <MessageInput
+              message={message}
+              setMessage={setMessage}
+              onFirstMessageSent={() => setFirstMessageSent(true)}
+              onOpenOptions={handleModelSelectionOpen}
+              onOpenTools={handleToolSelectionOpen}
+              onSubmit={handleSubmitWrapper}
+              isLoading={loading}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
+              isTemporaryChat={isTemporaryChat}
+              onStartTemporaryChat={handleToggleTemporaryChat}
+              useWebSearch={useWebSearch}
+              setUseWebSearch={setUseWebSearch}
+              messagesLeft={messagesLeft}
+              resetAt={resetAt}
+              user={user}
+            />
+          </div>
         </div>
       </motion.main>
     </>

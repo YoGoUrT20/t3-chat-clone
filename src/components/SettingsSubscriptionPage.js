@@ -349,7 +349,7 @@ export default function SettingsSubscriptionPage() {
       </div>
       <div className={`main-bg flex ${isMobile ? 'flex-col items-stretch min-h-screen' : 'justify-center items-start w-full min-h-screen'} `} style={isMobile ? {} : { minHeight: '130vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
         <div className={`w-full ${isMobile ? 'max-w-full flex flex-col bg-transparent rounded-none shadow-none border-none min-h-0 mt-0' : 'max-w-[1200px] flex flex-row bg-transparent rounded-xl shadow-none border-none min-h-[500px] mt-80'}`}>
-          <div className={`${isMobile ? 'w-full flex flex-col items-center justify-start bg-transparent relative min-w-0 mt-0 static' : 'flex flex-col items-center justify-start bg-transparent relative min-w-[220px] transition-all duration-300 mt-32'} `} style={isMobile ? {} : { minHeight: 220, position: 'sticky', top: 200, alignSelf: 'flex-start' }}>
+          <div className={`${isMobile ? 'w-full flex flex-col items-center justify-start bg-transparent relative min-w-0 mt-0 static' : 'flex flex-col items-center justify-start bg-transparent relative min-w-[220px] transition-all duration-300 mt-32'} `} style={isMobile ? {} : { minHeight: 220, position: 'fixed', top: 200, alignSelf: 'flex-start' }}>
             <ProfileSidebar
               user={user}
               loading={loading}

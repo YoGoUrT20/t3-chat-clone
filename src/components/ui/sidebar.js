@@ -5,7 +5,7 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
-import { useMediaQuery as useIsMobile } from '../../hooks/use-media-query'
+import { useMediaQuery } from '../../hooks/use-media-query'
 import { cn } from "../../lib/utils"
 import { Button } from './button'
 import { Input } from './input'
@@ -48,7 +48,7 @@ const SidebarProvider = React.forwardRef(
     },
     ref
   ) => {
-    const isMobile = useIsMobile()
+    const isMobile = useMediaQuery('(max-width: 1024px)')
     const [openMobile, setOpenMobile] = React.useState(false)
 
     const [_open, _setOpen] = React.useState(defaultOpen)
@@ -171,7 +171,7 @@ const Sidebar = React.forwardRef(
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
-        style={{ '--sidebar-width': 'calc(18rem + 55px)', position: 'fixed', left: 0, top: 0, height: '100vh', zIndex: 30 }}
+        style={{ '--sidebar-width': 'calc(18rem + 40px)', position: 'fixed', left: 0, top: 0, height: '100vh', zIndex: 30 }}
         {...props}
       >
         {children}

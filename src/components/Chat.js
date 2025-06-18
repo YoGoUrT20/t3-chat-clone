@@ -181,8 +181,6 @@ function Chat({
 
 
   const branchOptions = Object.values(branches).map(b => ({ id: b.id, label: b.id === 'root' ? 'Main' : b.id }));
-  const branch = branches[selectedBranchId] || branches.root || { messages: [] };
-  const branchMessages = branch.messages || [];
   let lastLlmMsgId;
   if (Array.isArray(displayedMessages) && displayedMessages.length > 0) {
     const lastLlmIndex = [...displayedMessages].reverse().findIndex(m => m.role === 'assistant' || m.sender === 'llm');
@@ -267,7 +265,7 @@ function Chat({
       <div
         ref={containerRef}
         className={`flex flex-col gap-4 w-full mx-auto py-4 px-2`}
-        style={isMobile ? {} : { maxWidth: 700 }}
+        style={Object.assign({}, isMobile ? {} : { maxWidth: 700 }, { paddingBottom: 100 })}
       >
         <AnimatePresence initial={false}>
           {displayedMessages.filter(Boolean).map((msg, idx, arr) => {
