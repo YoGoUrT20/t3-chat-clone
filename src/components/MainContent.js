@@ -18,7 +18,6 @@ import handleSubmit from '../lib/handleSubmit';
 import FirestoreStreamListener from './FirestoreStreamListener';
 import { matchModelFromName } from '../lib/utils';
 import componentStyles from './ModelSelection.module.css';
-import Tooltip from './Tooltip';
 import styles from './MainContent.module.css';
 
 function MainContent({ showSidebar, setShowSidebar }) {
@@ -564,8 +563,8 @@ function MainContent({ showSidebar, setShowSidebar }) {
         )}
       </AnimatePresence>
       <motion.main
-        className={`flex flex-col h-screen w-full px-0 lg:px-10 pt-2 lg:pt-10 pb-0 relative rounded-xl ${!isMobile ? styles.mainContainer : ''}`}
-        style={Object.assign({}, bgObj.style, !isMobile ? { marginLeft: 'calc(18rem)' } : {})}
+        className={`flex flex-col h-screen px-0 lg:px-10 pt-2 lg:pt-10 pb-0 relative rounded-xl ${!isMobile ? styles.mainContainer : ''}`}
+        style={Object.assign({}, bgObj.style, !isMobile ? { marginLeft: '18rem', width: 'calc(100% - 18rem)' } : { width: '100%' })}
       >
         {bgObj.image && (
           <div className='w-full flex justify-center mt-4'>
@@ -635,6 +634,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
             <div
               ref={chatContainerRef}
               className={`flex-1 w-full flex flex-col items-center overflow-y-auto hide-scrollbar ${!isMobile ? styles.chatContainer : ''}`}
+              style={{ paddingBottom: isMobile ? '20px' : '40px' }}
             >
               <Chat
                 modelFamily={lastUsedModelFamily}
@@ -693,7 +693,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
 
         {/* MessageInput always at the bottom, outside the flex-1 content */}
         <div className={`w-full ${!isMobile ? styles.bottomStickyContainer : ''}`}>
-          <div className={styles.inputWrapper}>
+          <div className={`${styles.inputWrapper} ${isMobile ? 'fixed bottom-0 left-0 right-0 z-40 px-4 pb-4 bg-transparent' : ''}`}>
             <MessageInput
               message={message}
               setMessage={setMessage}
