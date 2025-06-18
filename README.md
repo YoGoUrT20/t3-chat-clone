@@ -18,6 +18,7 @@
 - Web search
 - Temporary chats
 - Multiple tabs Synchronization
+- Search shortcut
 - & more
 ## Getting Started
 

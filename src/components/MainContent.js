@@ -669,7 +669,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
         </div>
 
         {/* Banner for terms and privacy policy, always above the input */}
-        {!user && !firstMessageSent && !modelSelectionOpen && !toolSelectionOpen && (
+        {/* {!user && !firstMessageSent && !modelSelectionOpen && !toolSelectionOpen && (
           <div
             className={`flex items-center justify-center mx-auto mb-6 ${componentStyles.liquidGlassCard}`}
             style={{
@@ -689,7 +689,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
               Make sure you agree to our <a href="/terms-of-service" style={{ color: '#fff', textDecoration: 'underline' }}>Terms</a> and our <a href="/privacy-policy" style={{ color: '#fff', textDecoration: 'underline' }}>Privacy Policy</a>
             </span>
           </div>
-        )}
+        )} */}
 
         {/* MessageInput always at the bottom, outside the flex-1 content */}
         <div className={`w-full ${!isMobile ? styles.bottomStickyContainer : ''}`}>

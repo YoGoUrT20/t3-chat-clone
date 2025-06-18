@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Copy, LogOut, HardDrive, Ghost, Globe, Plus } from 'lucide-react'
+import { Copy, LogOut, HardDrive, Ghost, Globe, Plus, Search } from 'lucide-react'
 import { Button } from './ui/button'
 import MessagesLeft from './MessagesLeft'
 import SignOutDialog from './SignOutDialog'
@@ -9,13 +9,15 @@ import EditShortcutsDialog from './EditShortcutsDialog'
 import { getFirestore, doc, updateDoc, getDoc } from 'firebase/firestore'
 import { useIsMobile } from '../hooks/use-mobile'
 import { useAuth } from '../AuthContext'
+import { isMac, getModifierKey } from '../lib/utils'
 
 function getShortcutsFromStorageOrUser(user) {
   const userObj = JSON.parse(localStorage.getItem('user') || '{}')
   if (Array.isArray(userObj.shortcuts)) return userObj.shortcuts
   if (user && Array.isArray(user.shortcuts)) return user.shortcuts
+  const modKey = getModifierKey();
   return [
-    { keys: ['ctrl', 'M'], description: 'Select a model' },
+    { keys: [modKey, 'M'], description: 'Select a model' },
     { keys: ['alt', 'T'], description: 'Temp chat' },
     { keys: ['alt', 'N'], description: 'New Chat' },
     { keys: ['alt', 'S'], description: 'Web Search' },
@@ -121,7 +123,7 @@ export default function ProfileSidebar({ user, loading, signOutUser, messagesLef
                 <div className='flex flex-row items-center gap-2 flex-shrink-0'>
                   {sc.keys.map((k, idx) => (
                     <span key={idx} className='px-3 py-1 rounded-lg bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] font-mono text-base font-bold text-[#0e0e10] dark:text-white transition-all group-hover:scale-105 group-hover:bg-[#e3cdde] dark:group-hover:bg-[#2a1e2b]'>
-                      {k.toUpperCase()}
+                      {k.toLowerCase() === 'meta' || k.toLowerCase() === 'ctrl' ? (isMac() ? '⌘' : 'CTRL') : k.toUpperCase()}
                     </span>
                   ))}
                 </div>
@@ -135,7 +137,7 @@ export default function ProfileSidebar({ user, loading, signOutUser, messagesLef
                   }}
                   onMouseLeave={() => setTooltipAnchor(null)}
                 >
-                  {i === 0 ? <HardDrive size={24} /> : i === 1 ? <Ghost size={24} /> : i === 2 ? <Plus size={24} /> : i === 3 ? <Globe size={24} /> : sc.description}
+                  {i === 0 ? <HardDrive size={24} /> : i === 1 ? <Ghost size={24} /> : i === 2 ? <Plus size={24} /> : i === 3 ? <Globe size={24} /> : i === 4 ? <Search size={24} /> : sc.description}
                   {tooltipAnchor === 'shortcut-' + i && (
                     <Tooltip x={tooltipX} y={tooltipY} text={tooltipText} />
                   )}

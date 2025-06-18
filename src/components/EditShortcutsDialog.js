@@ -4,26 +4,30 @@ import { Button } from './ui/button'
 import { useState, useEffect, useRef } from 'react'
 import { Save, Keyboard } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { isMac, getModifierKey } from '../lib/utils'
 
 const PREDEFINED_ACTIONS = [
   { id: 'select-model', description: 'Select a model' },
   { id: 'temp-chat', description: 'Temp chat', keys: ['alt', 't'] },
   { id: 'new-chat', description: 'New Chat' },
   { id: 'search-tool', description: 'Enable search tool', keys: ['alt', 's'] },
+  { id: 'search-conversations', description: 'Search conversations', keys: [getModifierKey(), 'f'] },
 ]
 
 const BROWSER_RESERVED_SHORTCUTS = [
-  ['ctrl', 'r'],
-  ['ctrl', 'n'],
-  ['ctrl', 'w'],
-  ['ctrl', 'tab'],
-  ['ctrl', 't'],
+  [getModifierKey(), 'r'],
+  [getModifierKey(), 'n'],
+  [getModifierKey(), 'w'],
+  [getModifierKey(), 'tab'],
+  [getModifierKey(), 't'],
+  // Ctrl+F is intentionally not listed here as we want to override it
 ]
 
 export default function EditShortcutsDialog({ open, onOpenChange, shortcuts, onSave }) {
   const [localShortcuts, setLocalShortcuts] = useState([])
   const [recordingIdx, setRecordingIdx] = useState(null)
   const keysPressed = useRef([])
+  const recordingTimeout = useRef(null)
 
   useEffect(() => {
     // Map existing shortcuts to predefined actions
@@ -37,65 +41,66 @@ export default function EditShortcutsDialog({ open, onOpenChange, shortcuts, onS
   }, [shortcuts, open])
 
   useEffect(() => {
-    if (recordingIdx === null) return
     const handleKeyDown = (e) => {
       e.preventDefault()
+      if (recordingTimeout.current) {
+        clearTimeout(recordingTimeout.current)
+        recordingTimeout.current = setTimeout(resetRecording, 2000)
+      }
       let key = e.key
       if (key === 'Control') key = 'ctrl'
       if (key === 'Meta') key = 'meta'
       if (key === 'Alt') key = 'alt'
       if (key === 'Shift') key = 'shift'
-
-      const isModifier = ['ctrl', 'alt', 'shift', 'meta'].includes(key)
-      // Only allow one modifier + one non-modifier
-      if (!isModifier) {
-        // Find which modifier is held (in fixed order)
-        let modifier = null
-        if (e.ctrlKey) modifier = 'ctrl'
-        else if (e.altKey) modifier = 'alt'
-        else if (e.shiftKey) modifier = 'shift'
-        else if (e.metaKey) modifier = 'meta'
-        if (modifier) {
-          keysPressed.current = [modifier, key]
-        } else {
-          // If no modifier, do not allow
-          toast.error('Shortcut must include a modifier key (Ctrl, Alt, Shift, or Meta)')
-          setRecordingIdx(null)
-          keysPressed.current = []
-          return
-        }
-      } else {
-        // Only record modifier if it's the first key
-        if (keysPressed.current.length === 0) {
-          keysPressed.current = [key]
-        }
+      if (!keysPressed.current.includes(key)) {
+        keysPressed.current.push(key)
       }
-      if (keysPressed.current.length === 2) {
-        if (isBrowserReservedShortcut(keysPressed.current)) {
-          toast.error('This shortcut may not work because the browser might overwrite it (e.g. Ctrl+R, Ctrl+N, Ctrl+W, Ctrl+Tab)')
+      const modifiers = keysPressed.current.filter(k => ['ctrl', 'meta', 'alt', 'shift'].includes(k))
+      const regularKeys = keysPressed.current.filter(k => !modifiers.includes(k))
+      if (modifiers.length === 1 && regularKeys.length === 1) {
+        const newShortcut = [modifiers[0], regularKeys[0]]
+        if (isBrowserReservedShortcut(newShortcut)) {
+          toast.error(`This shortcut may not work because the browser might overwrite it (e.g. ${getModifierKey().toUpperCase()}+R, ${getModifierKey().toUpperCase()}+N, etc.)`)
           setRecordingIdx(null)
-          keysPressed.current = []
           return
         }
-        setLocalShortcuts(prev => prev.map((sc, i) => i === recordingIdx ? { ...sc, keys: [...keysPressed.current] } : sc))
+        setLocalShortcuts(prev =>
+          prev.map((sc, i) => (i === recordingIdx ? { ...sc, keys: newShortcut } : sc))
+        )
         setRecordingIdx(null)
-        keysPressed.current = []
+      } else if (modifiers.length > 1 || regularKeys.length > 1) {
+        toast.error('Shortcut must be one modifier key + one other key.')
+        setRecordingIdx(null)
       }
     }
     const handleKeyUp = (e) => {
-      // If user releases all keys, reset if not enough keys
-      if (keysPressed.current.length < 2) {
-        setRecordingIdx(null)
-        keysPressed.current = []
-      }
+      let key = e.key
+      if (key === 'Control') key = 'ctrl'
+      if (key === 'Meta') key = 'meta'
+      if (key === 'Alt') key = 'alt'
+      if (key === 'Shift') key = 'shift'
+      keysPressed.current = keysPressed.current.filter(k => k !== key)
     }
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    return () => {
+    const resetRecording = () => {
+      toast.error('Shortcut recording timed out.')
+      setRecordingIdx(null)
+    }
+    const cleanup = () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      if (recordingTimeout.current) {
+        clearTimeout(recordingTimeout.current)
+      }
       keysPressed.current = []
     }
+    if (recordingIdx === null) {
+      cleanup()
+      return
+    }
+    recordingTimeout.current = setTimeout(resetRecording, 2000) // 2 second timeout
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return cleanup
   }, [recordingIdx])
 
   const handleStartRecording = (idx) => {
@@ -162,7 +167,7 @@ export default function EditShortcutsDialog({ open, onOpenChange, shortcuts, onS
                           {recordingIdx === idx
                             ? 'Press 2 keys...'
                             : sc.keys.length === 2
-                              ? sc.keys.map((k, i) => <span key={i} className='font-mono px-2 py-1 rounded bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] text-[#0e0e10] dark:text-white mx-0.5'>{k.toUpperCase()}</span>)
+                              ? sc.keys.map((k, i) => <span key={i} className='font-mono px-2 py-1 rounded bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] text-[#0e0e10] dark:text-white mx-0.5'>{k.toLowerCase() === 'meta' || k.toLowerCase() === 'ctrl' ? (isMac() ? '⌘' : 'CTRL') : k.toUpperCase()}</span>)
                               : sc.keys.length === 1
                                 ? <span className='font-mono px-2 py-1 rounded bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] text-[#0e0e10] dark:text-white mx-0.5'>{sc.keys[0].toUpperCase()}</span>
                                 : 'Set shortcut'}

@@ -58,13 +58,13 @@ const chatNameFromMessage = onRequest({ region: 'europe-west1' }, async (req, re
       },
     });
     const prompt = [
-      { role: 'system', content: 'You are a helpful assistant that creates short, descriptive chat names (max 5 words) based on the user\'s first message. Respond with only the chat name.' },
+      { role: 'system', content: 'You are a helpful assistant that creates short, descriptive chat names (max 8 words) based on the user\'s first message. Respond with only the chat name. Do not wrap the chat name in quotes.' },
       { role: 'user', content: message }
     ];
     const completion = await openai.chat.completions.create({
       model: 'deepseek/deepseek-chat-v3-0324',
       messages: prompt,
-      max_tokens: 16,
+      max_tokens: 32,
       temperature: 0.7,
     });
     let chatName = '';

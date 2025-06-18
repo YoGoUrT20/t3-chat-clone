@@ -10,9 +10,11 @@ import SecurityPolicy from './components/SecurityPolicy';
 import SettingsSubscriptionPage from './components/SettingsSubscriptionPage';
 import SharedChatPage from './components/SharedChatPage';
 import FAQSupport from './components/FAQSupport';
+import SearchConversationsDialog from './components/SearchConversationsDialog';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react'
+import { isMac, getModifierKey } from './lib/utils';
 
 function arraysEqual(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b)) return false
@@ -27,8 +29,9 @@ function getUserShortcuts() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   let shortcuts = user.shortcuts
   if (!Array.isArray(shortcuts)) {
+    const modKey = getModifierKey();
     shortcuts = [
-      { keys: ['ctrl', 'M'], description: 'Select a model' },
+      { keys: [modKey, 'M'], description: 'Select a model' },
       { keys: ['alt', 'T'], description: 'Temp chat' },
       { keys: ['alt', 'N'], description: 'New Chat' },
     ]
@@ -45,10 +48,18 @@ function normalizeShortcutFromEvent(e) {
   const isModifier = ['ctrl', 'alt', 'shift', 'meta'].includes(key)
   if (!isModifier) {
     let modifier = null
-    if (e.ctrlKey) modifier = 'ctrl'
-    else if (e.altKey) modifier = 'alt'
-    else if (e.shiftKey) modifier = 'shift'
-    else if (e.metaKey) modifier = 'meta'
+    if (isMac()) {
+        if (e.metaKey) modifier = 'meta'
+        else if (e.ctrlKey) modifier = 'ctrl'
+        else if (e.altKey) modifier = 'alt'
+        else if (e.shiftKey) modifier = 'shift'
+    } else {
+        if (e.ctrlKey) modifier = 'ctrl'
+        else if (e.metaKey) modifier = 'meta'
+        else if (e.altKey) modifier = 'alt'
+        else if (e.shiftKey) modifier = 'shift'
+    }
+
     if (modifier) {
       return [modifier, key]
     }
@@ -59,6 +70,7 @@ function normalizeShortcutFromEvent(e) {
 function AppWithRouter() {
   const [resetKey, setResetKey] = useState(0);
   const [showSidebar, setShowSidebar] = useState(window.innerWidth > 960);
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const location = useLocation();
 
   React.useEffect(() => {
@@ -93,6 +105,8 @@ function AppWithRouter() {
             window.dispatchEvent(new Event('select-model'))
           } else if (sc.description === 'Enable search tool') {
             window.dispatchEvent(new Event('enable-search-tool'))
+          } else if (sc.description === 'Search conversations') {
+            setSearchDialogOpen(true)
           }
           break
         }
@@ -178,6 +192,10 @@ function AppWithRouter() {
   return (
     <AuthProvider>
       <Toaster />
+      <SearchConversationsDialog 
+        open={searchDialogOpen} 
+        onOpenChange={setSearchDialogOpen} 
+      />
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />

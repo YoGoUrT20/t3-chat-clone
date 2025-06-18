@@ -164,10 +164,10 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
   };
 
   return (
-    <div className={cn('flex justify-center w-full', className, styles.liquidGlassBg)} style={{ position: 'relative' }}>
+    <div className={cn('flex justify-center w-full bg-transparent', className)} style={{ position: 'relative' }}>
       <div className='flex flex-col items-center w-full'>
         {useOwnKey && (
-          <div className={`w-full max-w-2xl flex items-center gap-2 px-5 py-3 mb-4 rounded-xl border border-[#ececec] dark:border-[#232228] bg-white/70 dark:bg-zinc-900/60 shadow ${styles.liquidGlassBg}`}
+          <div className={`w-full max-w-2xl flex items-center gap-2 px-5 py-3 mb-4 rounded-xl border border-[#ececec] dark:border-[#232228] bg-white/70 dark:bg-zinc-900/60 shadow`}
                style={{ color: '#232228', fontWeight: 600, fontSize: '1rem' }}>
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="flex-shrink-0 text-[#DC749E] dark:text-[#F9B4D0]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
             <span className='flex-1 text-left text-[#232228] dark:text-[#ececec]'>Using your own OpenRouter API key. All models are available.</span>
