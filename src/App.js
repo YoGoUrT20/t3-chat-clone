@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import SidePanel from './components/SidePanel';
 import MainContent from './components/MainContent';
-import { AuthProvider } from './AuthContext';
+import { AuthProvider, useAuth } from './AuthContext';
 import AuthPage from './components/AuthPage';
 import TermsOfService from './components/TermsOfService';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -78,6 +78,7 @@ function normalizeShortcutFromEvent(e) {
 }
 
 function AppWithRouter() {
+  const { user } = useAuth();
   const [resetKey, setResetKey] = useState(0);
   const [showSidebar, setShowSidebar] = useState(window.innerWidth > 960);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -111,10 +112,15 @@ function AppWithRouter() {
           } else if (sc.description === 'Temp chat') {
             window.dispatchEvent(new Event('temp-chat'))
           } else if (sc.description === 'Select a model') {
-            console.log('Dispatching select-model event from global shortcut')
             window.dispatchEvent(new Event('select-model'))
-          } else if (sc.description === 'Enable search tool') {
-            window.dispatchEvent(new Event('enable-search-tool'))
+          } else if (sc.description === 'Enable search tool' || sc.description === 'Web Search') {
+            if (user && user.status === 'premium') {
+              window.dispatchEvent(new Event('enable-search-tool'))
+            } else {
+              import('react-hot-toast').then(({ default: toast }) => {
+                toast.error('Web search is available for premium users only')
+              })
+            }
           } else if (sc.description === 'Search conversations') {
             setSearchDialogOpen(true)
           }
@@ -124,7 +130,7 @@ function AppWithRouter() {
     }
     window.addEventListener('keydown', handleGlobalShortcut)
     return () => window.removeEventListener('keydown', handleGlobalShortcut)
-  }, [location.pathname])
+  }, [location.pathname, user])
 
   React.useEffect(() => {
     window.navigateToRoot = () => {
@@ -277,11 +283,11 @@ function AppWithRouter() {
 
 export default function App() {
   return (
-    <>
+    <AuthProvider>
       <div style={{ height: '15px', width: '100%', background: 'transparent' }} />
       <Router>
         <AppWithRouter />
       </Router>
-    </>
+    </AuthProvider>
   );
 }
