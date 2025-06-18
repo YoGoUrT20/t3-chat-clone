@@ -1,10 +1,13 @@
-import { Info, HardDrive } from 'lucide-react'
+import { Info, HardDrive, Trash } from 'lucide-react'
 import Tooltip from './Tooltip'
 import Dropdown from './Dropdown'
-import { Switch } from './ui/switch'
-import Iso6391 from 'iso-639-1'
+// import { Switch } from './ui/switch'
 import { models } from '../models'
 import { useIsMobile } from '../hooks/use-mobile'
+import { Button } from './ui/button'
+import DeleteAccountDialog from './DeleteAccountDialog'
+import { useState } from 'react'
+import toast from 'react-hot-toast'
 
 export default function SettingsProfileTab({
   systemPrompt,
@@ -30,6 +33,36 @@ export default function SettingsProfileTab({
   onDefaultModelChange
 }) {
   const isMobile = useIsMobile()
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+
+  const useOwnKey = localStorage.getItem('use_own_api_key') === 'true'
+
+  const filteredModels = models.filter(model => {
+    if (useOwnKey) {
+      return true
+    }
+    const status = user?.status || 'free'
+    if (status === 'premium') {
+      return !model.apiKeyRequired
+    }
+    return model.freeAccess
+  })
+
+  async function handleDeleteAccount() {
+    setDeletingAccount(true)
+    try {
+      // TODO: Call backend delete endpoint here
+      await new Promise(r => setTimeout(r, 1200))
+      toast.success('Account deleted (placeholder)')
+      // Optionally, sign out or redirect
+    } catch (e) {
+      toast.error('Failed to delete account')
+    }
+    setDeletingAccount(false)
+    setShowDeleteDialog(false)
+  }
+
   return (
     <div className={`w-full ${isMobile ? 'p-2' : 'p-6'} pointer-events-none bg-transparent shadow-none`}>
       <div className='w-full relative'>
@@ -73,7 +106,29 @@ export default function SettingsProfileTab({
         <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] block text-left'>Preferred Language</label>
         <div className='w-full flex items-center'>
           <Dropdown
-            items={Iso6391.getAllCodes().map(code => ({ code, name: Iso6391.getName(code) })).filter(l => l.name)}
+            items={[
+              { code: 'English', name: 'English' },
+              { code: 'Ukrainian', name: 'Ukrainian' },
+              { code: 'Spanish', name: 'Spanish' },
+              { code: 'German', name: 'German' },
+              { code: 'French', name: 'French' },
+              { code: 'Italian', name: 'Italian' },
+              { code: 'Polish', name: 'Polish' },
+              { code: 'Dutch', name: 'Dutch' },
+              { code: 'Portuguese', name: 'Portuguese' },
+              { code: 'Chinese', name: 'Chinese' },
+              { code: 'Japanese', name: 'Japanese' },
+              { code: 'Korean', name: 'Korean' },
+              { code: 'Turkish', name: 'Turkish' },
+              { code: 'Czech', name: 'Czech' },
+              { code: 'Romanian', name: 'Romanian' },
+              { code: 'Hungarian', name: 'Hungarian' },
+              { code: 'Russian', name: 'Russian' },
+              { code: 'Hindi', name: 'Hindi' },
+              { code: 'Arabic', name: 'Arabic' },
+              { code: 'Hebrew', name: 'Hebrew' },
+              { code: 'Other', name: 'Other' }
+            ]}
             value={preferredLanguage}
             onChange={onLanguageChange}
           />
@@ -81,16 +136,14 @@ export default function SettingsProfileTab({
         <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] block text-left mt-4'>Default Model</label>
         <div className='w-full flex items-center'>
           <Dropdown
-            items={(user && user.status !== 'premium'
-              ? models.filter(m => m.freeAccess === true || m.apiKeyRequired === true)
-              : models
-            ).map(m => ({ code: m.name, name: m.displayName, apiKeyRequired: m.apiKeyRequired }))}
+            items={filteredModels.map(m => ({ code: m.name, name: m.displayName, apiKeyRequired: m.apiKeyRequired }))}
             value={defaultModel}
             onChange={onDefaultModelChange}
             placeholder='Select model'
             leftIcon={<HardDrive size={18} className='text-[#bdbdbd]' />}
           />
         </div>
+        {/*
         <div className='flex items-center gap-3 mt-4'>
           <Switch
             checked={reasoningEnabled}
@@ -99,6 +152,7 @@ export default function SettingsProfileTab({
           />
           <label htmlFor='reasoning-switch' className='text-sm text-[#90808A] dark:text-[#bdbdbd] cursor-pointer'>Show model reasoning/thinking</label>
         </div>
+        */}
         <div className={`w-full mt-4 flex flex-col gap-2 rounded-lg border border-[#ececec] dark:border-[#232228] bg-[#f5f5fa] dark:bg-[#232228] p-4 ${isMobile ? 'text-base' : ''}`}>
           <div className='flex flex-row items-center gap-4'>
             <span className='text-xs text-[#90808A] dark:text-[#bdbdbd] min-w-[120px]'>Total tokens used</span>
@@ -113,6 +167,26 @@ export default function SettingsProfileTab({
             <span className='font-semibold text-[#0e0e10] dark:text-white'>{userStats.totalImages.toLocaleString()}</span>
           </div>
         </div>
+      </div>
+      <div className={`w-full mt-8 pointer-events-auto`}>
+        <div className='border border-[#ff6b81] dark:border-[#ff6b81] bg-[#fff0f3] dark:bg-[#2a1a1d] rounded-lg p-4 flex flex-col gap-3'>
+          <span className='text-base font-bold text-[#d32f2f] dark:text-[#ff6b81]'>Danger Zone</span>
+          <span className='text-xs text-[#d32f2f] dark:text-[#ff6b81]'>Deleting your account is irreversible. All your data will be permanently removed.</span>
+          <Button
+            variant='destructive'
+            className='flex items-center gap-2 w-fit mt-2 border border-[#ff6b81] hover:bg-[#ff6b81]/10 hover:border-[#ff6b81] text-[#F2EBFA]'
+            type='button'
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash size={16} /> Delete account
+          </Button>
+        </div>
+        <DeleteAccountDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onConfirm={handleDeleteAccount}
+          loading={deletingAccount}
+        />
       </div>
     </div>
   )

@@ -18,7 +18,7 @@ import Tooltip from './Tooltip';
 import toast from 'react-hot-toast';
 import ToolsMenu from './ToolsMenu';
 
-function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage, selectedModel, setSelectedModel, isTemporaryChat, onStartTemporaryChat }) {
+function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message, setMessage, selectedModel, setSelectedModel, isTemporaryChat, onStartTemporaryChat, useWebSearch, setUseWebSearch }) {
   const [previewFiles, setPreviewFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState(null);
@@ -88,15 +88,15 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
 
   // Global keyboard shortcuts
   useEffect(() => {
-    const handler = (e) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'm') {
-        e.preventDefault();
-        setShowOptions((prev) => !prev);
+    const handler = () => {
+      setShowOptions((prev) => !prev);
+      if (typeof onOpenOptions === 'function') {
+        onOpenOptions();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+    window.addEventListener('select-model', handler);
+    return () => window.removeEventListener('select-model', handler);
+  }, [onOpenOptions]);
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -125,6 +125,16 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
       files = files.filter(file => file.size <= MAX_FILE_SIZE_BYTES);
       if (files.length === 0) return;
     }
+    // Separate PDFs and images
+    const pdfFiles = files.filter(file => file.type === 'application/pdf');
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    // Only allow images if model supports them
+    if (imageFiles.length > 0 && !(selectedModel && Array.isArray(selectedModel.capabilities) && (selectedModel.capabilities.includes('vision') || selectedModel.capabilities.includes('imagegen')))) {
+      toast.error('This model does not support image attachments');
+      // Only add PDFs
+      files = pdfFiles;
+      if (files.length === 0) return;
+    }
     const newPreviewFiles = files.map((file) => {
       if (file.type === 'application/pdf') {
         return { type: 'pdf', file, name: file.name, size: file.size };
@@ -136,7 +146,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
     const updatedFiles = [...currentFiles, ...files];
     setPreviewFiles([...previewFiles, ...newPreviewFiles]);
     form.setValue('images', updatedFiles);
-  }, [form, previewFiles, MAX_FILE_SIZE_BYTES]);
+  }, [form, previewFiles, MAX_FILE_SIZE_BYTES, selectedModel]);
 
   const removeFile = (index) => {
     const currentFiles = form.getValues('images') || [];
@@ -180,7 +190,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
         e.preventDefault();
         dragCounter.current = 0;
         setIsDragging(false);
-        const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith('image/'));
+        const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith('image/') || file.type === 'application/pdf');
         addFiles(files);
       }
     };
@@ -277,16 +287,42 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
 
   return (
     <UIForm {...form}>
-      <form ref={formRef} onSubmit={form.handleSubmit((...args) => {
+      <form ref={formRef} onSubmit={form.handleSubmit(async (...args) => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
           inputRef.current.style.overflowY = 'hidden';
         }
-        onSubmit(...args, selectedModel);
+        const data = args[0];
+        const model = args[2] || selectedModel;
+        const files = form.getValues('images') || [];
+        let images = [];
+        if (files.length > 0) {
+          images = await Promise.all(files.map(async (file) => {
+            return new Promise((resolve, reject) => {
+              const reader = new window.FileReader();
+              reader.onload = () => {
+                resolve({
+                  name: file.name,
+                  type: file.type,
+                  data: reader.result
+                });
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+          }));
+        }
+        setPreviewFiles([]);
+        form.setValue('images', []);
+        setMessage('');
+        await onSubmit({ ...data, images }, ...args.slice(1), model);
       })}
         className={cn('relative', isMobile && 'fixed bottom-0 left-0 w-full z-30 p-2 pb-4', !isMobile && '')}
-        style={isMobile ? { boxShadow: '0 -2px 24px 0 rgba(0,0,0,0.25)' } : {}}>
-        <div className="relative max-w-2xl mx-auto message-input-container">
+        style={isMobile ? { 
+          boxShadow: '0 -2px 24px 0 rgba(0,0,0,0.25)',
+          transformOrigin: 'bottom center'
+        } : {}}>
+        <div className={cn("relative max-w-2xl mx-auto message-input-container", isMobile && "flex flex-col-reverse")}>
           {/* Liquid glass border effect */}
           <div className="absolute inset-0 z-0 rounded-[24px] pointer-events-none border-2 border-white/60 bg-gradient-to-br from-white/10 via-white/5 to-white/0 backdrop-blur-2xl backdrop-brightness-125" style={{ boxShadow: '0 0 16px 2px rgba(255,255,255,0.10), 0 4px 32px 0 rgba(0,0,0,0.18)' }} />
           {/* Main glass content */}
@@ -295,7 +331,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
             className={cn(
               'relative z-10 bg-white/5 backdrop-blur-lg rounded-[24px] overflow-visible transition-all shadow-xl',
               isLoading && 'animate-pulse-loading pointer-events-none opacity-70',
-              isMobile && 'max-w-full rounded-2xl'
+              isMobile ? 'max-w-full rounded-2xl flex flex-col-reverse' : ''
             )}
             style={{ boxShadow: '0 0 12px 2px rgba(255,255,255,0.10)' }}
             onDragEnter={modelSupportsAttachments ? undefined : (e) => e.preventDefault()}
@@ -304,7 +340,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
           >
             <ImageUploadArea previewFiles={previewFiles} onRemoveFile={removeFile} isLoading={isLoading || !modelSupportsAttachments} />
             <div className='px-2 py-1.5'>
-              <div className='flex items-end'>
+              <div className={cn('flex', isMobile ? 'items-end' : 'items-end')}>
                 <div className='flex flex-row gap-x-2'>
                   <input
                     type='file'
@@ -313,10 +349,12 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                     multiple
                     onChange={handleFileChange}
                     className='hidden'
-                    disabled={isLoading || !modelSupportsAttachments}
+                    disabled={isLoading}
                   />
                   <div
-                    onMouseEnter={e => showTooltip(e, modelSupportsAttachments ? 'Add file' : 'This model does not support vision or image attachments')}
+                    onMouseEnter={e => showTooltip(e, (selectedModel && Array.isArray(selectedModel.capabilities) && (selectedModel.capabilities.includes('vision') || selectedModel.capabilities.includes('imagegen')))
+                      ? 'Add an image or PDF file'
+                      : 'Add a PDF file (images not supported by this model)')}
                     onMouseLeave={hideTooltip}
                     style={{ display: 'inline-block' }}
                   >
@@ -324,9 +362,9 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                       type='button'
                       variant='ghost'
                       size='icon'
-                      onClick={modelSupportsAttachments ? triggerFileInput : undefined}
+                      onClick={triggerFileInput}
                       className='liquid-glass-circle-btn'
-                      disabled={isLoading || !modelSupportsAttachments}
+                      disabled={isLoading}
                     >
                       <Paperclip className='h-5 w-5' />
                     </Button>
@@ -338,13 +376,19 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                       size='icon'
                       ref={toggleButtonRef}
                       onClick={() => {
-                        setShowOptions((prev) => !prev);
-                        onOpenOptions();
+                        setShowOptions((prev) => {
+                          const next = !prev;
+                          if (typeof onOpenOptions === 'function') {
+                            onOpenOptions(next);
+                          }
+                          return next;
+                        });
                       }}
                       className='liquid-glass-circle-btn'
                       disabled={isLoading}
                       onMouseEnter={e => showTooltip(e, 'Model selection (Ctrl+M)')}
                       onMouseLeave={hideTooltip}
+                      data-model-select-btn
                     >
                       <SlidersHorizontal className='h-5 w-5' />
                     </Button>
@@ -363,6 +407,11 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                               : 'absolute mx-auto my-auto bottom-full bg-zinc-900 border border-zinc-700 rounded-lg shadow-lg z-20 min-w-[600px] text-white',
                           )}
                           style={isMobile ? { bottom: 80, maxHeight: '60vh', overflow: 'visible' } : {}}
+                          onAnimationComplete={(def) => {
+                            if (!showOptions && typeof onOpenOptions === 'function') {
+                              onOpenOptions(false);
+                            }
+                          }}
                         >
                           <div className={isMobile ? 'max-h-[60vh] overflow-y-auto' : ''}>
                             {isMobile ? <ModelSelectionMobile selectedModel={selectedModel} onModelSelect={handleModelSelect} /> : <ModelSelection selectedModel={selectedModel} onModelSelect={handleModelSelect} />}
@@ -380,15 +429,33 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, message, setMessage,
                       toolsDropdownRef={toolsDropdownRef}
                       toolsButtonRef={toolsButtonRef}
                       showTools={showTools}
-                      setShowTools={setShowTools}
+                      setShowTools={(open) => {
+                        setShowTools(open);
+                        if (typeof onOpenTools === 'function') {
+                          onOpenTools(open);
+                        }
+                      }}
                       showTooltip={showTooltip}
                       hideTooltip={hideTooltip}
+                      useWebSearch={useWebSearch}
+                      setUseWebSearch={setUseWebSearch}
+                      onSelectModel={modelSlug => {
+                        if (setSelectedModel) {
+                          setSelectedModel({
+                            ...selectedModel,
+                            openRouterName: modelSlug,
+                            name: modelSlug,
+                            displayName: 'Web Search',
+                            family: 'chatgpt',
+                          });
+                        }
+                      }}
                     />
                   </div>
                 </div>
                 <AutoResizeTextarea
                   ref={inputRef}
-                  placeholder={randomPlaceholderRef.current}
+                  placeholder={isMobile ? 'Type a message...' : randomPlaceholderRef.current}
                   className="flex-1 bg-transparent border-0 focus:ring-0 text-white placeholder:text-gray-400 py-2 px-3 resize-none text-base tracking-normal"
                   value={message}
                   onChange={handleInputChange}
@@ -427,12 +494,15 @@ MessageInput.propTypes = {
   isLoading: PropTypes.bool.isRequired,
   onSubmit: PropTypes.func.isRequired,
   onOpenOptions: PropTypes.func.isRequired,
+  onOpenTools: PropTypes.func,
   message: PropTypes.string.isRequired,
   setMessage: PropTypes.func.isRequired,
-  selectedModel: PropTypes.string.isRequired,
+  selectedModel: PropTypes.object.isRequired,
   setSelectedModel: PropTypes.func.isRequired,
   isTemporaryChat: PropTypes.bool,
   onStartTemporaryChat: PropTypes.func,
+  useWebSearch: PropTypes.bool.isRequired,
+  setUseWebSearch: PropTypes.func.isRequired,
 };
 
 export default MessageInput; 

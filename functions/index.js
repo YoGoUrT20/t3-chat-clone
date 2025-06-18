@@ -66,28 +66,16 @@ function decrypt(encrypted) {
 
 exports.saveApiKey = apiKeyEndpoints.saveApiKey;
 
-function debugStream(label, state) {
-  console.log(`[BACKEND STREAM DEBUG] ${label}:`, JSON.stringify(state));
-}
-
-async function bufferToken(streamId, token) {
-  debugStream('bufferToken', { streamId, token });
-  const ref = admin.firestore().collection('streams').doc(streamId);
-  await ref.set({
-    tokens: admin.firestore.FieldValue.arrayUnion(token),
-    finished: false,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
-}
-
-async function markStreamFinished(streamId) {
-  debugStream('markStreamFinished', { streamId });
-  const ref = admin.firestore().collection('streams').doc(streamId);
-  await ref.set({ finished: true }, { merge: true });
+// Add or update premiumTokens on premium status
+const setPremiumTokensIfNeeded = async (userRef, userData) => {
+  if (userData.status === 'premium') {
+    if (!userData.premiumTokens || typeof userData.premiumTokens !== 'number' || userData.premiumTokens < 0) {
+      await userRef.set({ premiumTokens: 50 }, { merge: true })
+    }
+  }
 }
 
 exports.llmStreamResumable = onRequest({ region: 'europe-west1' }, async (req, res) => {
-  // Accepts requests with or without chat_id. If chat_id is not provided, generates a temporary id for stream persistence.
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
@@ -101,26 +89,29 @@ exports.llmStreamResumable = onRequest({ region: 'europe-west1' }, async (req, r
     return;
   }
   const userApiKey = req.get('x-api-key');
-  if (!userApiKey) {
-    res.status(401).send('Missing API key');
-    return;
-  }
   const db = admin.firestore();
-  const userSnap = await db.collection('users').where('apiKey', '==', userApiKey).limit(1).get();
-  if (userSnap.empty) {
-    res.status(403).send('Invalid API key');
-    return;
+  let userRef = null;
+  let userData = null;
+
+  if (userApiKey) {
+    const userSnap = await db.collection('users').where('apiKey', '==', userApiKey).limit(1).get();
+    if (userSnap.empty) {
+      res.status(403).send('Invalid API key');
+      return;
+    }
+    userRef = userSnap.docs[0].ref;
+    userData = userSnap.docs[0].data();
+    await setPremiumTokensIfNeeded(userRef, userData);
   }
-  const userRef = userSnap.docs[0].ref;
-  const userData = userSnap.docs[0].data();
-  let userSystemPrompt = userData.systemPrompt;
-  const preferredLanguage = userData.preferredLanguage;
+  
+  let userSystemPrompt = userData?.systemPrompt;
+  const preferredLanguage = userData?.preferredLanguage;
   let systemPromptParts = [];
   const selectedModel = models.find(m => m.openRouterName === req.body.model);
   if (selectedModel) {
-    systemPromptParts.push('You are ' + (selectedModel.displayName || selectedModel.openRouterName) + " model. You are operating at Quiver AI - A chat allowing seamless transition between different AI models.");
+    systemPromptParts.push('You are ' + (selectedModel.displayName || selectedModel.openRouterName) + ' model. You are operating at Quiver AI - A chat allowing seamless transition between different AI models.');
   }
-  systemPromptParts.push('Today\'s UTC date: ' + new Date().toISOString().slice(0, 10) + '.');
+  systemPromptParts.push(`Today's UTC date: ` + new Date().toISOString().slice(0, 10) + '.');
   if (preferredLanguage && typeof preferredLanguage === 'string' && preferredLanguage.trim() !== '') {
     systemPromptParts.push('User preferred language: ' + preferredLanguage.trim() + '.');
   }
@@ -130,7 +121,7 @@ exports.llmStreamResumable = onRequest({ region: 'europe-west1' }, async (req, r
   let finalSystemPrompt = systemPromptParts.join(' ');
 
   let apiKeyToUse = defaultApiKey;
-  if (userData.useOwnKey && userData.openrouterApiKey) {
+  if (userData?.useOwnKey && userData?.openrouterApiKey) {
     try {
       apiKeyToUse = decrypt(userData.openrouterApiKey);
     } catch (e) {
@@ -151,33 +142,64 @@ exports.llmStreamResumable = onRequest({ region: 'europe-west1' }, async (req, r
     res.status(405).send('Method Not Allowed');
     return;
   }
-  const { model, messages } = req.body;
+  const { model, messages, images, branchId } = req.body;
   if (!model || !messages) {
     res.status(400).send('Missing model or messages');
     return;
   }
   let streamId = req.body.chat_id;
   if (!streamId) {
-    // Generate a temporary stream id for cases like reroll or branch streaming
     streamId = `temp_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
   }
+  // Find the user message to get/generate messageid
+  let userMsg = messages.find(m => m.role === 'user');
+  // Always generate a new assistant message id for the stream and for the conversation
+  let assistantMessageId = uuidv4();
   const allowedModelNames = models.map(m => m.openRouterName);
   if (!allowedModelNames.includes(model)) {
     res.status(400).json({ error: 'invalid_model', message: 'Requested model is not available.' });
     return;
   }
-  if (selectedModel.apiKeyRequired && (!userData.apiKey || userData.apiKey.trim() === '')) {
+  if (selectedModel.apiKeyRequired && (!userData?.apiKey || userData.apiKey.trim() === '')) {
     res.status(403).json({ error: 'api_key_required', message: 'This model requires an API key.' });
     return;
   }
-  // Only enforce premium check if NOT using own OpenRouter API key
-  const usingOwnKey = userData.useOwnKey && userData.openrouterApiKey;
+  const usingOwnKey = userData?.useOwnKey && userData?.openrouterApiKey;
   if (!selectedModel.freeAccess && !usingOwnKey) {
-    if (userData.status !== 'premium' || !userData.premiumTokens || userData.premiumTokens <= 0) {
+    if (!userData || userData.status !== 'premium' || !userData.premiumTokens || userData.premiumTokens <= 0) {
       res.status(403).json({ error: 'premium_required', message: 'This model requires premium status and available premium tokens.' });
       return;
     }
     await userRef.set({ premiumTokens: admin.firestore.FieldValue.increment(-1) }, { merge: true });
+  }
+  // Web search deduction logic
+  const hasWebSearch = (
+    (typeof model === 'string' && model.endsWith(':online')) ||
+    (req.body && (
+      req.body.plugins && Array.isArray(req.body.plugins) && req.body.plugins.some(p => p.id === 'web') ||
+      req.body.web_search_options ||
+      req.body.useWebSearch === true
+    ))
+  );
+  // If useWebSearch param is true, ensure plugin is set and deduct 3 tokens
+  let webSearchPluginAdded = false;
+  if (req.body.useWebSearch === true) {
+    if (!req.body.plugins || !Array.isArray(req.body.plugins)) {
+      req.body.plugins = [];
+    }
+    if (!req.body.plugins.some(p => p.id === 'web')) {
+      req.body.plugins.push({ id: 'web' });
+      webSearchPluginAdded = true;
+    }
+  }
+  if (hasWebSearch && !usingOwnKey) {
+    // If useWebSearch, deduct 3 tokens, otherwise 2 (legacy logic)
+    const tokensToDeduct = req.body.useWebSearch === true ? 3 : 2;
+    if (!userData || userData.status !== 'premium' || !userData.premiumTokens || userData.premiumTokens < tokensToDeduct) {
+      res.status(403).json({ error: 'premium_required', message: `Web search requires premium status and at least ${tokensToDeduct} premium tokens.` });
+      return;
+    }
+    await userRef.set({ premiumTokens: admin.firestore.FieldValue.increment(-tokensToDeduct) }, { merge: true });
   }
   let newMessages = messages;
   if (finalSystemPrompt !== '') {
@@ -193,21 +215,138 @@ exports.llmStreamResumable = onRequest({ region: 'europe-west1' }, async (req, r
       ];
     }
   }
+  let visionAllowed = selectedModel && Array.isArray(selectedModel.capabilities) && selectedModel.capabilities.includes('vision');
+  let imagesToSend = [];
+  let pdfsToSend = [];
+  if (images && images.length > 0) {
+    if (!visionAllowed) {
+      res.status(400).json({ error: 'vision_not_supported', message: 'This model does not support image or file input.' });
+      return;
+    }
+    for (const file of images) {
+      if (!file || !file.data || !file.type || !file.name) {
+        res.status(400).json({ error: 'invalid_file', message: 'Invalid file format.' });
+        return;
+      }
+      if (file.type.startsWith('image/')) {
+        imagesToSend.push({
+          type: file.type,
+          name: file.name,
+          data: file.data
+        });
+      } else if (file.type === 'application/pdf') {
+        pdfsToSend.push({
+          type: file.type,
+          name: file.name,
+          data: file.data
+        });
+      } else {
+        res.status(400).json({ error: 'invalid_file_type', message: 'Only image and PDF files are supported.' });
+        return;
+      }
+    }
+  }
+  if (visionAllowed && (imagesToSend.length > 0 || pdfsToSend.length > 0)) {
+    let userMsgIdx = newMessages.findIndex(m => m.role === 'user');
+    if (userMsgIdx !== -1) {
+      let origContent = newMessages[userMsgIdx].content;
+      let textContent = '';
+      if (typeof origContent === 'string') {
+        textContent = origContent;
+      } else if (Array.isArray(origContent)) {
+        let textObj = origContent.find(c => c.type === 'text');
+        textContent = textObj ? textObj.text : '';
+      }
+      let contentArr = [];
+      if (textContent && textContent.length > 0) {
+        contentArr.push({ type: 'text', text: textContent });
+      }
+      for (const img of imagesToSend) {
+        contentArr.push({
+          type: 'image_url',
+          image_url: { url: img.data }
+        });
+      }
+      for (const pdf of pdfsToSend) {
+        contentArr.push({
+          type: 'file',
+          file: { filename: pdf.name, file_data: pdf.data }
+        });
+      }
+      newMessages[userMsgIdx].content = contentArr;
+    }
+  }
+  if (req.body.chat_id && newMessages.length > 0 && !req.body.isReroll) {
+    const conversationRef = db.collection('conversations').doc(req.body.chat_id);
+    const userMsg = newMessages[newMessages.length - 1];
+    
+    if (userMsg && userMsg.role === 'user' && !(Array.isArray(userMsg.content))) {
+      userMsg.id = userMsg.id || uuidv4();
+      if (branchId) {
+        const branchUpdate = {};
+        branchUpdate[`branches.${branchId}.messages`] = admin.firestore.FieldValue.arrayUnion(userMsg);
+        await conversationRef.update(branchUpdate);
+      } else {
+        await conversationRef.update({
+          messages: admin.firestore.FieldValue.arrayUnion(userMsg),
+          lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+  }
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-
-  // Use streamId as the stream key
   const streamRef = db.collection('streams').doc(streamId);
-  await streamRef.set({ tokens: [], finished: false, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+  // Initialize the stream doc with message, chatid, messageid, finished
+  await streamRef.set({
+    message: '',
+    tokens: [],
+    chatid: streamId,
+    messageid: assistantMessageId,
+    model: req.body.model,
+    finished: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
   let totalUsage = null;
+  let thinkingContent = '';
+  let mainContent = '';
   try {
-    const stream = await openai.chat.completions.create({
+    const payload = {
       model,
       messages: newMessages,
       stream: true,
-    });
-    // Do not save user message to Firestore; frontend is responsible for this
+    };
+
+    // Add web plugin if useWebSearch is true
+    if (req.body.useWebSearch === true) {
+      if (!payload.plugins) payload.plugins = [];
+      if (!payload.plugins.some(p => p.id === 'web')) {
+        payload.plugins.push({ id: 'web', max_results: 1, search_context_size: 'low', max_tokens: '2000' });
+      } else {
+        // If web plugin is present, enforce the options
+        payload.plugins = payload.plugins.map(p =>
+          p.id === 'web' ? { ...p, max_results: 1, search_context_size: 'low', max_tokens: '2000' } : p
+        );
+      }
+      // Always set web_search_options as well
+      payload.web_search_options = {
+        max_results: 1,
+        search_context_size: 'low',
+        max_tokens: '2000'
+      };
+    }
+    if (pdfsToSend.length > 0) {
+      if (!payload.plugins) payload.plugins = [];
+      payload.plugins.push({
+        id: 'file-parser',
+        pdf: {
+          engine: 'pdf-text',
+        },
+      });
+    }
+
+    const stream = await openai.chat.completions.create(payload);
     let conversationRef = null;
     if (req.body.chat_id) {
       conversationRef = db.collection('conversations').doc(req.body.chat_id);
@@ -216,71 +355,134 @@ exports.llmStreamResumable = onRequest({ region: 'europe-west1' }, async (req, r
       if (chunk.usage) {
         totalUsage = chunk.usage;
       }
-      await bufferToken(streamId, chunk);
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+      
+      let text = '';
       let reasoning = null;
-      if (chunk.choices && chunk.choices[0]) {
-        if (chunk.choices[0].delta && chunk.choices[0].delta.reasoning) {
-          reasoning = chunk.choices[0].delta.reasoning;
-        } else if (chunk.choices[0].message && chunk.choices[0].message.reasoning) {
-          reasoning = chunk.choices[0].message.reasoning;
-        }
+
+      if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.reasoning) {
+        reasoning = chunk.choices[0].delta.reasoning;
+      } else if (chunk.reasoning) {
+        reasoning = chunk.reasoning;
       }
-      if (reasoning !== null) {
-        res.write(`data: ${JSON.stringify({ reasoning })}\n\n`);
+      
+      if (chunk.content) {
+        text = chunk.content;
+      } else if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+        text = chunk.choices[0].delta.content;
       }
+
+      if (reasoning) {
+        thinkingContent += reasoning;
+      }
+      if (text) {
+        mainContent += text;
+      }
+
+      let currentMessage = '';
+      if (thinkingContent) {
+        currentMessage = `<thinking>${thinkingContent}</thinking>${mainContent}`;
+      } else {
+        currentMessage = mainContent;
+      }
+      await streamRef.update({
+          message: currentMessage,
+          tokens: admin.firestore.FieldValue.arrayUnion(chunk)
+      });
+
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
     }
-    await markStreamFinished(streamId);
+    await streamRef.update({ finished: true });
     res.end();
     if (totalUsage) {
       const promptTokens = totalUsage.prompt_tokens || 0;
       const completionTokens = totalUsage.completion_tokens || 0;
       const totalTokens = totalUsage.total_tokens || (promptTokens + completionTokens);
-      await userRef.set({
-        totalTokens: admin.firestore.FieldValue.increment(totalTokens),
-        totalMessages: admin.firestore.FieldValue.increment(1),
-        totalImages: admin.firestore.FieldValue.increment(0),
-        prompt_tokens: promptTokens,
-        completion_tokens: completionTokens
-      }, { merge: true });
+      // Only increment totalImages if the model is an image generation model
+      // Imagen to be implemented.. :(
+      const imageGenModelNames = ['openai/gpt-imagegen'];
+      const isImageGenModel = imageGenModelNames.includes(model);
+      if (userRef) {
+        await userRef.set({
+          totalTokens: admin.firestore.FieldValue.increment(totalTokens),
+          totalMessages: admin.firestore.FieldValue.increment(1),
+          totalImages: isImageGenModel ? admin.firestore.FieldValue.increment(imagesToSend.length) : admin.firestore.FieldValue.increment(0),
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens
+        }, { merge: true });
+      }
     } else {
-      await userRef.set({
-        totalMessages: admin.firestore.FieldValue.increment(1),
-      }, { merge: true });
+      if (userRef) {
+        await userRef.set({
+          totalMessages: admin.firestore.FieldValue.increment(1),
+        }, { merge: true });
+      }
     }
-    // Save assistant message to Firestore if chat_id is provided
     if (conversationRef && req.body.chat_id) {
-      // Compose the assistant message from the streamed tokens
       const streamDoc = await streamRef.get();
       let assistantText = '';
-      if (streamDoc.exists && streamDoc.data().tokens) {
-        for (const token of streamDoc.data().tokens) {
-          const text =
-            (token.reasoning) ||
-            (token.content) ||
-            (token.choices && token.choices[0] && token.choices[0].delta && token.choices[0].delta.content);
-          if (text) assistantText += text;
-        }
+      if (streamDoc.exists && streamDoc.data().message) {
+        assistantText = streamDoc.data().message;
       }
-      // Only append assistant message if non-empty and not duplicate
       if (assistantText.trim().length > 0) {
-        const convSnap = await conversationRef.get();
-        const convData = convSnap.data();
-        const lastMsg = (convData.messages && convData.messages.length > 0) ? convData.messages[convData.messages.length - 1] : null;
-        if (!lastMsg || lastMsg.content !== assistantText || lastMsg.role !== 'assistant') {
-          await conversationRef.update({
-            messages: admin.firestore.FieldValue.arrayUnion({
-              role: 'assistant',
-              content: assistantText,
-              model: model
-            }),
-            lastUsed: admin.firestore.FieldValue.serverTimestamp(),
-          });
+        const assistantMessage = {
+          role: 'assistant',
+          content: assistantText,
+          model: model,
+          id: assistantMessageId
+        };
+        const { branchId } = req.body;
+        // REROLL REPLACE LOGIC
+        if (req.body.isReroll && req.body.rerollMsgId) {
+          const convSnap = await conversationRef.get();
+          const convData = convSnap.data();
+          if (branchId) {
+            // Replace in branch
+            const branch = convData.branches && convData.branches[branchId];
+            if (branch && Array.isArray(branch.messages)) {
+              const newBranchMessages = branch.messages.map(msg =>
+                msg.id === req.body.rerollMsgId ? { ...assistantMessage, id: req.body.rerollMsgId } : msg
+              );
+              const branchUpdate = {};
+              branchUpdate[`branches.${branchId}.messages`] = newBranchMessages;
+              branchUpdate['lastUsed'] = admin.firestore.FieldValue.serverTimestamp();
+              await conversationRef.update(branchUpdate);
+            }
+          } else {
+            // Replace in main messages
+            if (Array.isArray(convData.messages)) {
+              const newMessages = convData.messages.map(msg =>
+                msg.id === req.body.rerollMsgId ? { ...assistantMessage, id: req.body.rerollMsgId } : msg
+              );
+              await conversationRef.update({
+                messages: newMessages,
+                lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        } else {
+          // Default: append as usual
+          if (branchId) {
+            const branchUpdate = {};
+            branchUpdate[`branches.${branchId}.messages`] = admin.firestore.FieldValue.arrayUnion(assistantMessage);
+            branchUpdate['lastUsed'] = admin.firestore.FieldValue.serverTimestamp();
+            await conversationRef.update(branchUpdate);
+          } else {
+            const convSnap = await conversationRef.get();
+            const convData = convSnap.data();
+            const lastMsg = (convData.messages && convData.messages.length > 0) ? convData.messages[convData.messages.length - 1] : null;
+            if (!lastMsg || lastMsg.id !== assistantMessageId) {
+              await conversationRef.update({
+                messages: admin.firestore.FieldValue.arrayUnion(assistantMessage),
+                lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+              });
+            }
+          }
         }
       }
     }
   } catch (err) {
-    await markStreamFinished(streamId);
+    await streamRef.update({ finished: true });
+    console.error('llmStreamResumable error:', err && err.stack ? err.stack : err);
     res.status(500).send('LLM stream error');
   }
 });

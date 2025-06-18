@@ -1,16 +1,30 @@
 import { useState, useEffect } from 'react'
-import { Copy, LogOut, HardDrive, Ghost } from 'lucide-react'
+import { Copy, LogOut, HardDrive, Ghost, Globe, Plus } from 'lucide-react'
 import { Button } from './ui/button'
 import MessagesLeft from './MessagesLeft'
 import SignOutDialog from './SignOutDialog'
 import toast from 'react-hot-toast'
 import Tooltip from './Tooltip'
 import EditShortcutsDialog from './EditShortcutsDialog'
-import { getFirestore, doc, updateDoc } from 'firebase/firestore'
+import { getFirestore, doc, updateDoc, getDoc } from 'firebase/firestore'
 import { useIsMobile } from '../hooks/use-mobile'
+import { useAuth } from '../AuthContext'
+
+function getShortcutsFromStorageOrUser(user) {
+  const userObj = JSON.parse(localStorage.getItem('user') || '{}')
+  if (Array.isArray(userObj.shortcuts)) return userObj.shortcuts
+  if (user && Array.isArray(user.shortcuts)) return user.shortcuts
+  return [
+    { keys: ['ctrl', 'M'], description: 'Select a model' },
+    { keys: ['alt', 'T'], description: 'Temp chat' },
+    { keys: ['alt', 'N'], description: 'New Chat' },
+    { keys: ['alt', 'S'], description: 'Web Search' },
+  ]
+}
 
 export default function ProfileSidebar({ user, loading, signOutUser, messagesLeft, resetAt, now }) {
   const isMobile = useIsMobile()
+  const { setUser } = useAuth()
   const [showSignOutDialog, setShowSignOutDialog] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [tooltipAnchor, setTooltipAnchor] = useState(null)
@@ -18,16 +32,10 @@ export default function ProfileSidebar({ user, loading, signOutUser, messagesLef
   const [tooltipY, setTooltipY] = useState(0)
   const [tooltipText, setTooltipText] = useState('')
   const [showEditShortcuts, setShowEditShortcuts] = useState(false)
-  const [shortcuts, setShortcuts] = useState(user.shortcuts || [
-    { keys: ['ctrl', 'M'], description: 'Select a model' },
-    { keys: ['ctrl', 'T'], description: 'Temp chat' },
-  ])
+  const [shortcuts, setShortcuts] = useState(getShortcutsFromStorageOrUser(user))
 
   useEffect(() => {
-    setShortcuts(user.shortcuts || [
-      { keys: ['ctrl', 'M'], description: 'Select a model' },
-      { keys: ['ctrl', 'T'], description: 'Temp chat' },
-    ])
+    setShortcuts(getShortcutsFromStorageOrUser(user))
   }, [user])
 
   if (loading || !user) {
@@ -83,7 +91,7 @@ export default function ProfileSidebar({ user, loading, signOutUser, messagesLef
           <LogOut size={16} />
           <span>Sign out</span>
         </Button>
-        <MessagesLeft messagesLeft={messagesLeft} resetAt={resetAt} now={now} />
+        <MessagesLeft messagesLeft={user.status === 'premium' ? user.premiumTokens : messagesLeft} resetAt={resetAt} now={now} premium={user.status === 'premium'} />
         <SignOutDialog
           open={showSignOutDialog}
           onOpenChange={setShowSignOutDialog}
@@ -102,64 +110,75 @@ export default function ProfileSidebar({ user, loading, signOutUser, messagesLef
           }}
         />
       </div>
-      <div className='w-full mt-6 flex flex-col gap-3 rounded-2xl border border-[#ececec] dark:border-[#232228] bg-gradient-to-br from-[#f5f5fa] to-[#ececec] dark:from-[#232228] dark:to-[#18171a] p-5 shadow-sm'>
-        <div className='flex items-center gap-2 mb-2'>
-          <span className='text-base font-bold text-[#0e0e10] dark:text-white tracking-tight'>Shortcuts</span>
-        </div>
-        <div className='flex flex-col gap-2'>
-          {shortcuts.map((sc, i) => (
-            <div key={i} className='flex flex-row items-center justify-between gap-4 group whitespace-nowrap'>
-              <div className='flex flex-row items-center gap-2 flex-shrink-0'>
-                {sc.keys.map((k, idx) => (
-                  <span key={idx} className='px-3 py-1 rounded-lg bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] font-mono text-base font-bold text-[#0e0e10] dark:text-white transition-all group-hover:scale-105 group-hover:bg-[#e3cdde] dark:group-hover:bg-[#2a1e2b]'>
-                    {k}
-                  </span>
-                ))}
+      {isMobile ? null : (
+        <div className='w-full mt-6 flex flex-col gap-3 rounded-2xl border border-[#ececec] dark:border-[#232228] bg-gradient-to-br from-[#f5f5fa] to-[#ececec] dark:from-[#232228] dark:to-[#18171a] p-5 shadow-sm'>
+          <div className='flex items-center gap-2 mb-2'>
+            <span className='text-base font-bold text-[#0e0e10] dark:text-white tracking-tight'>Shortcuts</span>
+          </div>
+          <div className='flex flex-col gap-2'>
+            {shortcuts.map((sc, i) => (
+              <div key={i} className='flex flex-row items-center justify-between gap-4 group whitespace-nowrap'>
+                <div className='flex flex-row items-center gap-2 flex-shrink-0'>
+                  {sc.keys.map((k, idx) => (
+                    <span key={idx} className='px-3 py-1 rounded-lg bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] font-mono text-base font-bold text-[#0e0e10] dark:text-white transition-all group-hover:scale-105 group-hover:bg-[#e3cdde] dark:group-hover:bg-[#2a1e2b]'>
+                      {k.toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+                <span
+                  className='font-semibold text-[#6d4a6b] dark:text-[#e3cdde] text-sm text-right truncate max-w-[120px] relative flex items-center gap-1'
+                  onMouseEnter={function(e) {
+                    setTooltipAnchor('shortcut-' + i)
+                    setTooltipX(e.clientX)
+                    setTooltipY(e.clientY)
+                    setTooltipText(sc.description)
+                  }}
+                  onMouseLeave={() => setTooltipAnchor(null)}
+                >
+                  {i === 0 ? <HardDrive size={24} /> : i === 1 ? <Ghost size={24} /> : i === 2 ? <Plus size={24} /> : i === 3 ? <Globe size={24} /> : sc.description}
+                  {tooltipAnchor === 'shortcut-' + i && (
+                    <Tooltip x={tooltipX} y={tooltipY} text={tooltipText} />
+                  )}
+                </span>
               </div>
-              <span
-                className='font-semibold text-[#6d4a6b] dark:text-[#e3cdde] text-sm text-right truncate max-w-[120px] relative flex items-center gap-1'
-                onMouseEnter={function(e) {
-                  setTooltipAnchor('shortcut-' + i)
-                  setTooltipX(e.clientX)
-                  setTooltipY(e.clientY)
-                  setTooltipText(sc.description)
-                }}
-                onMouseLeave={() => setTooltipAnchor(null)}
-              >
-                {i === 0 ? <HardDrive size={24} /> : i === 1 ? <Ghost size={24} /> : sc.description}
-                {tooltipAnchor === 'shortcut-' + i && (
-                  <Tooltip x={tooltipX} y={tooltipY} text={tooltipText} />
-                )}
-              </span>
-            </div>
-          ))}
-          <Button
-            variant='outline'
-            className='mt-2 w-full flex items-center justify-center gap-2 text-[#6d4a6b] dark:text-[#e3cdde]'
-            type='button'
-            onClick={() => setShowEditShortcuts(true)}
-          >
-            Edit Shortcuts
-          </Button>
-          <EditShortcutsDialog
-            open={showEditShortcuts}
-            onOpenChange={setShowEditShortcuts}
-            shortcuts={shortcuts}
-            onSave={async (newShortcuts) => {
-              try {
-                const db = getFirestore()
-                const userRef = doc(db, 'users', user.uid)
-                await updateDoc(userRef, { shortcuts: newShortcuts })
-                setShortcuts(newShortcuts)
-                toast.success('Shortcuts updated!')
-                setShowEditShortcuts(false)
-              } catch (e) {
-                toast.error('Failed to save shortcuts')
-              }
-            }}
-          />
+            ))}
+            <Button
+              variant='outline'
+              className='mt-2 w-full flex items-center justify-center gap-2 text-[#6d4a6b] dark:text-[#e3cdde]'
+              type='button'
+              onClick={() => setShowEditShortcuts(true)}
+            >
+              Edit Shortcuts
+            </Button>
+            <EditShortcutsDialog
+              open={showEditShortcuts}
+              onOpenChange={setShowEditShortcuts}
+              shortcuts={shortcuts}
+              onSave={async (newShortcuts) => {
+                try {
+                  const db = getFirestore()
+                  const userRef = doc(db, 'users', user.uid)
+                  await updateDoc(userRef, { shortcuts: newShortcuts })
+                  const userSnap = await getDoc(userRef)
+                  let updatedUser = user
+                  if (userSnap.exists()) {
+                    updatedUser = { ...user, ...userSnap.data(), shortcuts: newShortcuts }
+                  } else {
+                    updatedUser = { ...user, shortcuts: newShortcuts }
+                  }
+                  setShortcuts(newShortcuts)
+                  localStorage.setItem('user', JSON.stringify(updatedUser))
+                  if (setUser) setUser(updatedUser)
+                  toast.success('Shortcuts updated!')
+                  setShowEditShortcuts(false)
+                } catch (e) {
+                  toast.error('Failed to save shortcuts')
+                }
+              }}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 } 

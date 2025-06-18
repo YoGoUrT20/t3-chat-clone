@@ -1,5 +1,6 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
+const { v4: uuidv4 } = require('uuid');
 
 if (!admin.apps.length) admin.initializeApp();
 
@@ -48,6 +49,13 @@ const createSharedChat = onRequest({ region: 'europe-west1' }, async (req, res) 
       return;
     }
     const chatData = chatSnap.data();
+    // Add id to all messages if missing
+    if (chatData.messages && Array.isArray(chatData.messages)) {
+      chatData.messages = chatData.messages.map(msg => {
+        if (!msg.id) msg.id = uuidv4();
+        return msg;
+      });
+    }
     // Check if a shared chat with the same messages already exists
     const sharedQuery = await db.collection('shared_chats')
       .where('model', '==', chatData.model || '')

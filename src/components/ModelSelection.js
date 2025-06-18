@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { models } from '../models';
 import { Button } from './ui/button';
@@ -10,6 +11,7 @@ import { useAuth } from '../AuthContext';
 
 function ModelSelection({ items = models, className, selectedModel, onModelSelect, defaultModel }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   // Custom family order
   const familyOrder = ['claude', 'gemini', 'chatgpt', 'deepseek', 'llama', 'grok', 'qwen'];
   const sortByCustomFamilyOrder = (models) => {
@@ -25,13 +27,16 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
       return a.displayName.localeCompare(b.displayName);
     });
   };
-  const useOwnKey = (user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true';
+  // Only allow useOwnKey if user is signed in
+  const useOwnKey = !!user && ((user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true');
   const sortedItems = sortByCustomFamilyOrder(items)
     .map(item => {
       let hasApiKey = false;
       let hasSubscription = false;
       if (useOwnKey) {
         hasApiKey = true;
+        hasSubscription = true;
+      } else if (user && user.status === 'premium') {
         hasSubscription = true;
       }
       const blockedByKey = item.apiKeyRequired && !hasApiKey;
@@ -49,7 +54,16 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
   const iconRefs = useRef({});
   const nameRefs = useRef({});
   const [search, setSearch] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
   const searchInputRef = useRef();
+
+  // Collect all unique tags from models
+  const allTags = Array.from(new Set(models.flatMap(m => m.tags || []))).sort();
+
+  // Tag selection handler
+  const handleTagClick = (tag) => {
+    setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
 
   useEffect(() => {
     if (searchInputRef.current) {
@@ -91,34 +105,38 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
     setNameTooltip({ visible: false, x: 0, y: 0, text: '' });
   };
 
-  const filterModels = (items, search) => {
-    if (!search.trim()) return items;
-    const s = search.trim().toLowerCase();
-    // Sort by how well displayNameV2, displayName, or family matches the search string
-    return [...items].sort((a, b) => {
-      const aName = a.displayNameV2.toLowerCase();
-      const bName = b.displayNameV2.toLowerCase();
-      const aDisplay = a.displayName.toLowerCase();
-      const bDisplay = b.displayName.toLowerCase();
-      const aFamily = a.family ? a.family.toLowerCase() : '';
-      const bFamily = b.family ? b.family.toLowerCase() : '';
-      // Helper to get best match score for a model
-      const getScore = (name, display, family) => {
-        if (name === s || display === s || family === s) return 0;
-        if (name.startsWith(s) || display.startsWith(s) || family.startsWith(s)) return 1;
-        if (name.includes(s) || display.includes(s) || family.includes(s)) return 2;
-        // Lower indexOf is better
-        const idxs = [name.indexOf(s), display.indexOf(s), family.indexOf(s)].filter(idx => idx !== -1);
-        if (idxs.length > 0) return 3 + Math.min(...idxs);
-        // Otherwise, sort by length difference
-        return 100 + Math.abs(name.length - s.length);
-      };
-      const aScore = getScore(aName, aDisplay, aFamily);
-      const bScore = getScore(bName, bDisplay, bFamily);
-      if (aScore !== bScore) return aScore - bScore;
-      // Fallback: shorter length difference is better
-      return Math.abs(aName.length - s.length) - Math.abs(bName.length - s.length);
-    });
+  // Filtering logic
+  const filterModels = (items, search, selectedTags) => {
+    if (search.trim()) {
+      const s = search.trim().toLowerCase();
+      // Sort by how well displayNameV2, displayName, or family matches the search string
+      return [...items].sort((a, b) => {
+        const aName = a.displayNameV2.toLowerCase();
+        const bName = b.displayNameV2.toLowerCase();
+        const aDisplay = a.displayName.toLowerCase();
+        const bDisplay = b.displayName.toLowerCase();
+        const aFamily = a.family ? a.family.toLowerCase() : '';
+        const bFamily = b.family ? b.family.toLowerCase() : '';
+        const getScore = (name, display, family) => {
+          if (name === s || display === s || family === s) return 0;
+          if (name.startsWith(s) || display.startsWith(s) || family.startsWith(s)) return 1;
+          if (name.includes(s) || display.includes(s) || family.includes(s)) return 2;
+          const idxs = [name.indexOf(s), display.indexOf(s), family.indexOf(s)].filter(idx => idx !== -1);
+          if (idxs.length > 0) return 3 + Math.min(...idxs);
+          return 100 + Math.abs(name.length - s.length);
+        };
+        const aScore = getScore(aName, aDisplay, aFamily);
+        const bScore = getScore(bName, bDisplay, bFamily);
+        if (aScore !== bScore) return aScore - bScore;
+        return Math.abs(aName.length - s.length) - Math.abs(bName.length - s.length);
+      });
+    }
+    if (selectedTags.length === 0) return items;
+    // Sort all models by number of matching tags (descending), but do not filter any out
+    return [...items].map(item => ({
+      ...item,
+      tagScore: item.tags ? selectedTags.filter(tag => item.tags.includes(tag)).length : 0
+    })).sort((a, b) => b.tagScore - a.tagScore);
   };
 
   // Determine which model is selected
@@ -128,14 +146,15 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
       effectiveSelectedModel = models.find(m => m.name === defaultModel)
     }
     if (!effectiveSelectedModel) {
-      effectiveSelectedModel = models.find(m => m.name === 'gpt-4.1')
+      effectiveSelectedModel = models.find(m => m.name === 'gemini-2.0-flash-lite')
     }
   }
 
-  const filteredItems = filterModels(sortedItems, search);
+  const filteredItems = filterModels(sortedItems, search, selectedTags);
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       // Pick the first unlocked model from filteredItems (sorted by best match)
       const unlocked = filteredItems.filter(i => !i.isBlocked);
       if (unlocked.length > 0 && onModelSelect) {
@@ -163,7 +182,12 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
                   <span className='text-lg text-zinc-700 dark:text-zinc-300 mt-1'>9$ to access all models</span>
                 </div>
                 <div className='flex flex-col items-end w-full sm:w-auto'>
-                  <Button className='text-base font-semibold px-8 py-3 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200'>Subscribe</Button>
+                  <Button
+                    className='text-base font-semibold px-8 py-3 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200'
+                    onClick={() => navigate('/settings', { state: { selectedTab: 'Subscription' } })}
+                  >
+                    Subscribe
+                  </Button>
                   <span className='text-sm text-zinc-600 dark:text-zinc-400 mt-2 self-end'>9$/month</span>
                 </div>
               </div>
@@ -182,6 +206,26 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
                 autoComplete='off'
               />
             </div>
+        {/* Tag selection UI */}
+        <div className={`col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2 flex flex-wrap gap-2 items-center`}>
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => handleTagClick(tag)}
+              className={cn(
+                'px-3 py-1 rounded-full border text-xs font-semibold transition',
+                selectedTags.includes(tag)
+                  ? 'bg-primary text-primary-foreground border-primary shadow'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 hover:bg-primary/10 dark:hover:bg-primary/20'
+              )}
+              style={{ outline: 'none' }}
+              tabIndex={0}
+              aria-pressed={selectedTags.includes(tag)}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
             {filteredItems.map((item) => (
               <ModelCard
                 key={item.name}

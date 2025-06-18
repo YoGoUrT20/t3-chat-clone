@@ -28,12 +28,16 @@ export function AuthProvider({ children }) {
         let publicId = null;
         let createdAt = null;
         let status = 'free';
+        let shortcuts = null;
+        let premiumTokens = null;
         if (userSnap.exists()) {
           const data = userSnap.data();
           key = data.apiKey;
           publicId = data.public_id;
           createdAt = data.createdAt;
           status = data.status || 'free';
+          shortcuts = data.shortcuts || null;
+          premiumTokens = typeof data.premiumTokens === 'number' ? data.premiumTokens : null;
         }
         if (!key) {
           key = [...Array(48)].map(() => Math.random().toString(36)[2]).join('');
@@ -41,16 +45,16 @@ export function AuthProvider({ children }) {
         if (!publicId) {
           publicId = uuidv4();
         }
-        // Save createdAt only if it does not exist
         if (!createdAt) {
           createdAt = Date.now();
         }
-        // Always ensure user doc exists with at least status: 'free'
-        await setDoc(userRef, { apiKey: key, public_id: publicId, createdAt, status }, { merge: true });
+        if (premiumTokens === null) {
+          premiumTokens = 50;
+        }
+        await setDoc(userRef, { apiKey: key, public_id: publicId, createdAt, status, premiumTokens }, { merge: true });
         setApiKey(key);
         localStorage.setItem('apiKey', key);
-        // Merge public_id and uid into user object for context
-        const mergedUser = { ...firebaseUser, public_id: publicId, uid: firebaseUser.uid, status };
+        const mergedUser = { ...firebaseUser, public_id: publicId, uid: firebaseUser.uid, status, shortcuts, premiumTokens };
         setUser(mergedUser);
         localStorage.setItem('user', JSON.stringify(mergedUser));
       } else {

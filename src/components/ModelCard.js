@@ -35,6 +35,15 @@ function ModelCard({
       )}
       style={{ fontSize: 13 }}
       onClick={() => !isBlocked && onModelSelect && onModelSelect(item)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (!isBlocked && onModelSelect) {
+            onModelSelect(item);
+          }
+        }
+      }}
+      tabIndex={!isBlocked ? 0 : -1}
     >
       {isBlocked && (
         <div className='absolute inset-0 z-20 flex items-center justify-center pointer-events-auto'>

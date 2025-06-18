@@ -164,14 +164,14 @@ const Sidebar = React.forwardRef(
       <div
         ref={ref}
         className={cn(
-          "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-linear",
+          "sidebar-fixed-desktop flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-linear",
           className
         )}
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
-        style={{ '--sidebar-width': '18rem' }}
+        style={{ '--sidebar-width': 'calc(18rem + 55px)', position: 'fixed', left: 0, top: 0, height: '100vh', zIndex: 30 }}
         {...props}
       >
         {children}

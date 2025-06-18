@@ -1,5 +1,6 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
+const { v4: uuidv4 } = require('uuid');
 
 if (!admin.apps.length) admin.initializeApp();
 
@@ -123,6 +124,8 @@ const createBranch = onRequest({ region: 'europe-west1' }, async (req, res) => {
         return;
       }
       const branchMessages = baseMessages.slice(0, idx + 1);
+      // Add id to all messages in branchMessages if missing
+      branchMessages.forEach(msg => { if (!msg.id) msg.id = uuidv4(); });
       const newBranch = {
         id: branchId,
         parentMessageId,
@@ -162,6 +165,8 @@ const createBranch = onRequest({ region: 'europe-west1' }, async (req, res) => {
       return;
     }
     const branchMessages = baseMessages.slice(0, idx + 1);
+    // Add id to all messages in branchMessages if missing
+    branchMessages.forEach(msg => { if (!msg.id) msg.id = uuidv4(); });
     const newBranch = {
       id: branchId,
       parentMessageId,
@@ -223,6 +228,8 @@ const addMessageToBranch = onRequest({ region: 'europe-west1' }, async (req, res
         res.status(404).send('Branch not found');
         return;
       }
+      // Add id to message if missing
+      if (!message.id) message.id = uuidv4();
       branches[branchId].messages.push(message);
       await db.collection('shared_chats').doc(chatid).update({ branches });
       res.status(200).send({ branch: branches[branchId] });
@@ -245,6 +252,8 @@ const addMessageToBranch = onRequest({ region: 'europe-west1' }, async (req, res
       res.status(404).send('Branch not found');
       return;
     }
+    // Add id to message if missing
+    if (!message.id) message.id = uuidv4();
     branches[branchId].messages.push(message);
     await chatRef.update({ branches });
     res.status(200).send({ branch: branches[branchId] });

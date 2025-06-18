@@ -12,6 +12,49 @@ import SharedChatPage from './components/SharedChatPage';
 import FAQSupport from './components/FAQSupport';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Plus } from 'lucide-react'
+
+function arraysEqual(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].toLowerCase() !== b[i].toLowerCase()) return false
+  }
+  return true
+}
+
+function getUserShortcuts() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  let shortcuts = user.shortcuts
+  if (!Array.isArray(shortcuts)) {
+    shortcuts = [
+      { keys: ['ctrl', 'M'], description: 'Select a model' },
+      { keys: ['alt', 'T'], description: 'Temp chat' },
+      { keys: ['alt', 'N'], description: 'New Chat' },
+    ]
+  }
+  return shortcuts
+}
+
+function normalizeShortcutFromEvent(e) {
+  let key = e.key
+  if (key === 'Control') key = 'ctrl'
+  if (key === 'Meta') key = 'meta'
+  if (key === 'Alt') key = 'alt'
+  if (key === 'Shift') key = 'shift'
+  const isModifier = ['ctrl', 'alt', 'shift', 'meta'].includes(key)
+  if (!isModifier) {
+    let modifier = null
+    if (e.ctrlKey) modifier = 'ctrl'
+    else if (e.altKey) modifier = 'alt'
+    else if (e.shiftKey) modifier = 'shift'
+    else if (e.metaKey) modifier = 'meta'
+    if (modifier) {
+      return [modifier, key]
+    }
+  }
+  return null
+}
 
 function AppWithRouter() {
   const [resetKey, setResetKey] = useState(0);
@@ -25,6 +68,49 @@ function AppWithRouter() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  React.useEffect(() => {
+    const handleGlobalShortcut = (e) => {
+      // Don't trigger if a dialog is open (EditShortcutsDialog)
+      if (document.querySelector('[data-radix-dialog-open]')) return
+      // Disable shortcuts on /settings page
+      if (location.pathname === '/settings') return
+      const shortcut = normalizeShortcutFromEvent(e)
+      if (!shortcut) return
+      const userShortcuts = getUserShortcuts()
+      for (const sc of userShortcuts) {
+        if (arraysEqual(sc.keys, shortcut)) {
+          e.preventDefault()
+          if (sc.description === 'New Chat') {
+            window.dispatchEvent(new Event('new-chat'))
+            if (typeof window.navigateToRoot === 'function') {
+              window.navigateToRoot()
+            }
+          } else if (sc.description === 'Temp chat') {
+            window.dispatchEvent(new Event('temp-chat'))
+          } else if (sc.description === 'Select a model') {
+            console.log('Dispatching select-model event from global shortcut')
+            window.dispatchEvent(new Event('select-model'))
+          } else if (sc.description === 'Enable search tool') {
+            window.dispatchEvent(new Event('enable-search-tool'))
+          }
+          break
+        }
+      }
+    }
+    window.addEventListener('keydown', handleGlobalShortcut)
+    return () => window.removeEventListener('keydown', handleGlobalShortcut)
+  }, [location.pathname])
+
+  React.useEffect(() => {
+    window.navigateToRoot = () => {
+      if (location.pathname !== '/') {
+        window.history.pushState({}, '', '/');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    };
+    return () => { delete window.navigateToRoot; };
+  }, [location]);
 
   // Listen for new-chat event and expose window.newChat
   React.useEffect(() => {
@@ -50,6 +136,44 @@ function AppWithRouter() {
       localStorage.setItem('prev_path', location.pathname)
     }
   }, [location.pathname])
+
+  // Apply customization settings globally
+  React.useEffect(() => {
+    function applyCustomization() {
+      // Remove global font customization
+      // Background
+      const background = localStorage.getItem('chat_bg');
+      if (background) {
+        // Try to find a matching background option with a style
+        try {
+          const backgroundOptions = [
+            { value: 'default', style: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' },
+            { value: 'model-glow', style: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' },
+            { value: 'glow-under', style: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' },
+          ];
+          const bgObj = backgroundOptions.find(b => b.value === background);
+          if (bgObj && bgObj.style) {
+            document.body.style.background = bgObj.style;
+          } else {
+            document.body.style.background = '';
+          }
+        } catch {
+          document.body.style.background = '';
+        }
+      } else {
+        document.body.style.background = '';
+      }
+    }
+    applyCustomization();
+    // Listen for custom event to re-apply customization
+    window.addEventListener('customization-changed', applyCustomization);
+    // Also listen for storage changes (in case of multi-tab)
+    window.addEventListener('storage', applyCustomization);
+    return () => {
+      window.removeEventListener('customization-changed', applyCustomization);
+      window.removeEventListener('storage', applyCustomization);
+    };
+  }, []);
 
   return (
     <AuthProvider>

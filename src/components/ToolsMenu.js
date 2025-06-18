@@ -3,6 +3,9 @@ import { Button } from './ui/button';
 import { Wrench, Globe, PlusCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../lib/utils';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../AuthContext';
+import { Switch } from './ui/switch';
 
 function ToolsMenu({
   isLoading,
@@ -14,8 +17,14 @@ function ToolsMenu({
   showTools,
   setShowTools,
   showTooltip,
-  hideTooltip
+  hideTooltip,
+  onSelectModel,
+  useWebSearch,
+  setUseWebSearch,
 }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   return (
     <>
       <Button
@@ -50,21 +59,41 @@ function ToolsMenu({
             <div className={isMobile ? 'max-h-[40vh] overflow-y-auto' : ''}>
               <div className='flex flex-col'>
                 <button
-                  className={`w-full text-left px-4 py-2 hover:bg-zinc-800 transition-colors text-base font-medium flex items-center gap-2 ${isTemporaryChat ? 'text-red-400' : ''}`}
+                  className={`w-full text-left px-4 py-2 hover:bg-zinc-800 transition-colors text-base font-medium flex items-center gap-2 ${isTemporaryChat ? 'text-red-400' : ''} ${!user ? 'opacity-60 cursor-not-allowed' : ''}`}
                   onClick={() => {
+                    if (!user) return;
                     setShowTools(false);
                     if (onStartTemporaryChat) onStartTemporaryChat();
+                    navigate('/');
                   }}
+                  disabled={!user}
                 >
                   <Wrench className='h-5 w-5' />
                   {isTemporaryChat ? 'End temporary chat' : 'Start temporary chat'}
                 </button>
                 <button
-                  className='w-full text-left px-4 py-2 hover:bg-zinc-800 transition-colors text-base font-medium flex items-center gap-2 opacity-60 cursor-not-allowed'
-                  disabled
+                  className={`w-full text-left px-4 py-2 hover:bg-zinc-800 transition-colors text-base font-medium flex items-center justify-between gap-2 ${user && user.status === 'premium' && user.premiumTokens >= 2 ? '' : 'opacity-60 cursor-not-allowed'}`}
+                  onClick={() => {
+                    if (user && user.status === 'premium' && user.premiumTokens >= 2) {
+                      setUseWebSearch(prev => !prev);
+                    }
+                  }}
+                  disabled={!user || user.status !== 'premium' || user.premiumTokens < 2}
                 >
-                  <Globe className='h-5 w-5' />
-                  Web search (coming soon)
+                  <span className='flex items-center gap-2 pointer-events-none'>
+                    <Globe className='h-5 w-5' />
+                    Web search
+                  </span>
+                  <span className="pointer-events-none">
+                    <Switch
+                      checked={useWebSearch}
+                      onCheckedChange={checked => {
+                        if (!user || user.status !== 'premium' || user.premiumTokens < 2) return;
+                        setUseWebSearch(checked);
+                      }}
+                      disabled={!user || user.status !== 'premium' || user.premiumTokens < 2}
+                    />
+                  </span>
                 </button>
                 <button
                   className='w-full text-left px-4 py-2 hover:bg-zinc-800 transition-colors text-base font-medium flex items-center gap-2 opacity-60 cursor-not-allowed'

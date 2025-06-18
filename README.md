@@ -11,7 +11,13 @@
 - Branches support
 - Mobile support
 - Syntax highlighting / customizable
-- MarkDown / tables support 
+- Markdown / tables support 
+- Stripe/payments support
+- Programmable shortcuts
+- History extraction
+- Web search
+- Temporary chats
+- & more
 ## Getting Started
 
 This project requires configuration of environment variables for both development and production. Please follow the appropriate setup instructions below.
@@ -43,7 +49,7 @@ This project requires configuration of environment variables for both developmen
      STRIPE_SECRET_KEY=your_stripe_secret_key
      STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
      HOST=http://localhost:3000
-     API_KEY_SECRET=our_32_byte_secret_key_here_123456
+     API_KEY_SECRET=our_32_byte_secret_key_here_123
      OPENROUTER_REFERER=your_openrouter_referer
      OPENROUTER_TITLE=your_openrouter_title
      OPEN_ROUTER_API_KEY=your_openrouter_api_key
@@ -68,6 +74,14 @@ This project requires configuration of environment variables for both developmen
      - In the left menu, select &apos;Authentication&apos; and click &apos;Get started&apos;.
      - Enable the sign-in methods you want to support (such as Email/Password, Google, etc).
    - These steps are required for both development and production environments.
+   - When you will start using message history, you will get an error, to fix it:
+     - Open developer tools (F12).
+     - Click on the link to create firestore index.
+   - Login into firebase within the project using Firebase CLI.
+     - `firebase login`
+     - `firebase use:email@gmail.com`
+   - Deploy the functions
+   - `firebase deploy --only functions`
 
 5. **Start the development server:**
    `npm run dev`
@@ -80,14 +94,17 @@ This project requires configuration of environment variables for both developmen
 
 To set up for production, first complete the Development Setup steps above. Then:
 
-1. **Build the project for production:**
-   `npm run build`
 
-2. **Ensure both `.env` and `functions/.env` are configured with production values.**
+1. **Ensure both `.env` and `functions/.env` are configured with production values.**
    - Use your production Firebase and Stripe credentials.
    - Update `HOST` in `functions/.env` to your production domain.
 
-3. **Deploy your app and functions according to your hosting provider&apos;s instructions.**
+2. **Build the project for production:**
+   `npm run build`
+
+3. **Deploy your app and updated functions using firebase**
+   - `firebase deploy --only functions`
+   - `firebase deploy --only hosting`
 
 ---
 

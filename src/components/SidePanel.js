@@ -25,6 +25,7 @@ import { useAuth } from '../AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getFirestore, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import Tooltip from './Tooltip';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function SidePanel({ onReset, visible, setVisible }) {
   const { user, loading } = useAuth();
@@ -34,6 +35,7 @@ function SidePanel({ onReset, visible, setVisible }) {
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '', model: '' });
   const [conversations, setConversations] = useState([]);
   const [loadingConvos, setLoadingConvos] = useState(true);
+  const searchInputRef = React.useRef(null);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -47,10 +49,6 @@ function SidePanel({ onReset, visible, setVisible }) {
       setLoadingConvos(false);
       return;
     }
-    // Load from localStorage first
-    const cached = JSON.parse(localStorage.getItem('conversations') || '{}');
-    const cachedConvos = Object.values(cached).filter(c => c.userId === user.uid);
-    if (cachedConvos.length > 0) setConversations(cachedConvos);
     const db = getFirestore();
     const q = query(
       collection(db, 'conversations'),
@@ -60,14 +58,20 @@ function SidePanel({ onReset, visible, setVisible }) {
     const unsub = onSnapshot(q, (snap) => {
       const convos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setConversations(convos);
-      // Update localStorage cache
-      const cache = JSON.parse(localStorage.getItem('conversations') || '{}');
-      convos.forEach(c => { cache[c.id] = c; });
-      localStorage.setItem('conversations', JSON.stringify(cache));
       setLoadingConvos(false);
     });
     return () => unsub();
   }, [user]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    };
+    window.addEventListener('enable-search-tool', handler);
+    return () => window.removeEventListener('enable-search-tool', handler);
+  }, []);
 
   if (windowWidth <= 960) return null;
 
@@ -156,7 +160,7 @@ function SidePanel({ onReset, visible, setVisible }) {
     <SidebarProvider defaultOpen={visible}>
       <Sidebar>
         <SidebarHeader>
-          <Button onClick={() => { window.pendingReset = true; navigate('/', { replace: true }); }} className='w-full flex items-center gap-2 py-2 justify-start pl-16 mt-6'>
+          <Button onClick={() => { window.pendingReset = true; navigate('/', { replace: true }); }} className='w-full flex items-center gap-2 py-2 justify-center mt-6'>
             <span className='flex items-center gap-2'>
               <img src='/quiver.svg' alt='Quiver Logo' width={28} height={28} className='mr-2' style={{ display: 'inline-block' }} />
               <span className='text-xl font-bold tracking-tight text-gray-900 dark:text-white'>Quiver</span>
@@ -176,26 +180,28 @@ function SidePanel({ onReset, visible, setVisible }) {
             }
           `}</style>
           <div className='bg-transparent'>
-            <div className='relative flex items-center px-2 py-2'>
-              <Search size={16} className='text-gray-500 dark:text-gray-300 absolute left-3 pointer-events-none' />
-              <SidebarInput
-                placeholder='Search your conversations...'
-                value={searchValue}
-                onChange={e => setSearchValue(e.target.value)}
-                className='pl-9 pr-9 flex-1 text-white custom-no-outline'
-                style={{ background: 'transparent', caretColor: '#fff', color: '#fff' }}
-              />
-              {searchValue && (
-                <button
-                  type='button'
-                  onClick={() => setSearchValue('')}
-                  aria-label='Clear search'
-                  className='absolute right-3 p-1 rounded hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
-                  style={{ top: '50%', transform: 'translateY(-50%)' }}
-                >
-                  <span className='text-gray-500 dark:text-gray-300'>&#215;</span>
-                </button>
-              )}
+            <div className='flex flex-col items-center px-2 py-2'>
+              <div className='relative w-11/12 max-w-xs'>
+                <Search size={16} className='text-gray-500 dark:text-gray-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none' />
+                <SidebarInput
+                  ref={searchInputRef}
+                  placeholder='Search your conversations...'
+                  value={searchValue}
+                  onChange={e => setSearchValue(e.target.value)}
+                  className='pl-9 pr-9 text-white custom-no-outline w-full'
+                  style={{ background: 'transparent', caretColor: '#fff', color: '#fff' }}
+                />
+                {searchValue && (
+                  <button
+                    type='button'
+                    onClick={() => setSearchValue('')}
+                    aria-label='Clear search'
+                    className='absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+                  >
+                    <span className='text-gray-500 dark:text-gray-300'>&#215;</span>
+                  </button>
+                )}
+              </div>
             </div>
             <div className='h-0.5 w-7/12 bg-gray-200 dark:bg-[#28242A] my-1 mx-auto' />
           </div>
@@ -222,7 +228,24 @@ function SidePanel({ onReset, visible, setVisible }) {
                               >
                                 <MessagesSquare className='h-4 w-4 mr-3 flex-shrink-0' />
                                 <span className='truncate text-left chat-title-name' style={{ width: 120, display: 'inline-block' }}>
-                                {truncate(conv.name || conv.messages?.[0]?.content || 'Conversation', 40)}
+                                <AnimatePresence mode='wait' initial={false}>
+                                  <motion.span
+                                    key={conv.name || conv.messages?.[0]?.content || 'Conversation'}
+                                    initial={{ opacity: 0, x: 16 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -16 }}
+                                    transition={{ duration: 0.22 }}
+                                    style={{
+                                      display: 'inline-block',
+                                      width: '100%',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    {truncate(conv.name || conv.messages?.[0]?.content || 'Conversation', 40)}
+                                  </motion.span>
+                                </AnimatePresence>
                                 </span>
                                 <span className='text-xs text-gray-400 dark:text-gray-500 truncate chat-title-model text-right' style={{ width: 80, display: 'inline-block', marginLeft: 8 }}>
                                   {truncate(conv.modelDisplayName || '', 20)}

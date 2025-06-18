@@ -1,9 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { RefreshCw, Share2, Copy, GitBranch } from 'lucide-react';
 import Tooltip from './Tooltip';
-import { DropdownControlled } from './Dropdown';
 import { models } from '../models';
 import { createPortal } from 'react-dom';
+import RerollDropdown from './RerollDropdown';
+import styles from './ModelSelection.module.css';
+import LiquidGlassButton from './LiquidGlassButton';
+import Dropdown from './Dropdown';
+import { Button } from './ui/button';
+import { useClickAway } from '../hooks/use-click-away';
+import { useAuth } from '../AuthContext';
 
 function ActionButtons({
   msg,
@@ -25,69 +31,173 @@ function ActionButtons({
   hideTooltip,
   onReroll
 }) {
+  const { user } = useAuth();
+  const useOwnKey = localStorage.getItem('use_own_api_key') === 'true';
   const [rerollDropdownOpen, setRerollDropdownOpen] = useState(false);
   const rerollBtnRef = useRef(null);
   const branchBtnRef = useRef(null);
-  const [branchDropdownPos, setBranchDropdownPos] = useState({ left: 0, top: 0, width: 180 });
+  const branchDropdownDivRef = useRef(null);
+  const [branchDropdownPos, setBranchDropdownPos] = useState({ left: 0, top: 0, width: 180, opacity: 0, transformOrigin: 'top' });
 
   // Prepare items for Dropdown
-  const currentModel = models.find(m => m.name === msg.model);
-  const otherModels = models.filter(m => m.name !== msg.model);
-  const dropdownItems = (currentModel ? [currentModel, ...otherModels] : models).map(m => ({ code: m.name, name: m.displayName || m.name, apiKeyRequired: m.apiKeyRequired }));
+  const filteredModels = models.filter(model => {
+    if (useOwnKey) {
+      return true;
+    }
+    const status = user?.status || 'free';
+    if (status === 'premium') {
+      return !model.apiKeyRequired;
+    }
+    return model.freeAccess;
+  });
+
+  const currentModel = filteredModels.find(m => m.name === msg.model);
+  const otherModels = filteredModels.filter(m => m.name !== msg.model);
+  const dropdownItems = (currentModel ? [currentModel, ...otherModels] : filteredModels).map(m => ({ code: m.name, name: m.displayName || m.name, apiKeyRequired: m.apiKeyRequired }));
 
   React.useEffect(() => {
-    function handleClickOutside(event) {
-      if (rerollDropdownOpen) {
-        const dropdown = document.getElementById('reroll-model-dropdown');
-        if (
-          dropdown && !dropdown.contains(event.target) &&
-          rerollBtnRef.current && !rerollBtnRef.current.contains(event.target)
-        ) {
-          setRerollDropdownOpen(false);
-        }
-      }
-      if (branchDropdownOpen) {
-        const dropdown = document.getElementById('branch-dropdown');
-        if (
-          dropdown && !dropdown.contains(event.target) &&
-          branchBtnRef.current && !branchBtnRef.current.contains(event.target)
-        ) {
-          setBranchDropdownOpen(null);
-        }
-      }
-    }
     if (rerollDropdownOpen || branchDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = 'hidden';
     } else {
-      document.removeEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = '';
     }
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = '';
     };
-  }, [rerollDropdownOpen, branchDropdownOpen, setBranchDropdownOpen]);
+  }, [rerollDropdownOpen, branchDropdownOpen]);
+
+  useEffect(() => {
+    if (branchDropdownOpen && branchDropdownDivRef.current && branchBtnRef.current) {
+      const dropdownEl = branchDropdownDivRef.current;
+      const btnRect = branchBtnRef.current.getBoundingClientRect();
+      const dropdownHeight = dropdownEl.offsetHeight;
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const minMargin = 8;
+      
+      let top, transformOrigin;
+      const spaceBelow = viewportHeight - btnRect.bottom;
+      const spaceAbove = btnRect.top;
+
+      if (spaceBelow < dropdownHeight + minMargin && spaceAbove > dropdownHeight) {
+        // Open above
+        top = btnRect.top - dropdownHeight - 4;
+        transformOrigin = 'bottom';
+      } else {
+        // Open below
+        top = btnRect.bottom + 4;
+        transformOrigin = 'top';
+      }
+      
+      let left = btnRect.left;
+      let width = Math.max(btnRect.width, 180);
+
+      if (left + width > viewportWidth - minMargin) {
+        left = viewportWidth - width - minMargin;
+      }
+      if (left < minMargin) {
+        left = minMargin;
+      }
+
+      setBranchDropdownPos({
+        left,
+        top,
+        width,
+        transformOrigin,
+        opacity: 1,
+      });
+    }
+  }, [branchDropdownOpen]);
+
+  // Recalculate dropdown position after render in case dropdown height changes
+  useEffect(() => {
+    if (branchDropdownOpen && branchDropdownDivRef.current && branchBtnRef.current) {
+      const dropdownEl = branchDropdownDivRef.current;
+      const btnRect = branchBtnRef.current.getBoundingClientRect();
+      const dropdownHeight = dropdownEl.offsetHeight;
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const minMargin = 8;
+
+      let top, transformOrigin;
+      const spaceBelow = viewportHeight - btnRect.bottom;
+      const spaceAbove = btnRect.top;
+
+      if (spaceBelow < dropdownHeight + minMargin && spaceAbove > dropdownHeight) {
+        // Open above
+        top = btnRect.top - dropdownHeight - 4;
+        transformOrigin = 'bottom';
+      } else {
+        // Open below
+        top = btnRect.bottom + 4;
+        transformOrigin = 'top';
+      }
+
+      let left = btnRect.left;
+      let width = Math.max(btnRect.width, 180);
+
+      if (left + width > viewportWidth - minMargin) {
+        left = viewportWidth - width - minMargin;
+      }
+      if (left < minMargin) {
+        left = minMargin;
+      }
+
+      setBranchDropdownPos(pos => {
+        // Only update if changed
+        if (
+          pos.left !== left ||
+          pos.top !== top ||
+          pos.width !== width ||
+          pos.transformOrigin !== transformOrigin
+        ) {
+          return {
+            ...pos,
+            left,
+            top,
+            width,
+            transformOrigin,
+            opacity: 1,
+          };
+        }
+        return pos;
+      });
+    }
+  }, [branchDropdownOpen, branchOptions.length]);
+
+  // Close branch dropdown on click-away
+  useClickAway(
+    [branchDropdownDivRef, branchBtnRef],
+    () => {
+      if (branchDropdownOpen && !isTemporaryChat) setBranchDropdownOpen(null);
+    }
+  );
 
   const handleRerollBtnClick = () => {
     setRerollDropdownOpen(true);
   };
 
   const handleBranchBtnClick = () => {
+    const branchId = msg.id || msg.messageId;
+    if (branchDropdownOpen === branchId) {
+      setBranchDropdownOpen(null);
+      return;
+    }
     if (branchBtnRef.current) {
       const rect = branchBtnRef.current.getBoundingClientRect();
       setBranchDropdownPos({
         left: rect.left,
         top: rect.bottom + 4,
         width: Math.max(rect.width, 180),
+        opacity: 0,
       });
     }
-    setBranchDropdownOpen(msg.id || msg.messageId);
+    setBranchDropdownOpen(branchId);
   };
 
   return (
     <div>
-      <div className='flex gap-2 mt-2 ml-10 relative'>
+      <div className='flex gap-1 mt-2 ml-10 relative'>
         <button
           ref={rerollBtnRef}
           className='p-2 rounded-lg hover:bg-[#332940] transition'
@@ -103,18 +213,18 @@ function ActionButtons({
             id='reroll-model-dropdown'
             style={{ pointerEvents: 'auto' }}
           >
-            <DropdownControlled
+            <RerollDropdown
               items={dropdownItems}
               value={msg.model}
-              onChange={model => {
+              onChange={modelCode => {
                 setRerollDropdownOpen(false);
-                if (onReroll) onReroll(msg, model);
+                const modelObj = models.find(m => m.name === modelCode);
+                const modelToSend = modelObj?.openRouterName || modelCode;
+                if (onReroll) onReroll(msg, modelToSend);
               }}
-              placeholder='Select model to reroll'
+              anchorRef={rerollBtnRef}
               isOpen={rerollDropdownOpen}
               setIsOpen={setRerollDropdownOpen}
-              anchorRef={rerollBtnRef}
-              hideButton={true}
             />
           </div>,
           document.body
@@ -143,7 +253,9 @@ function ActionButtons({
         </button>
         {!isTemporaryChat && branchDropdownOpen === (msg.id || msg.messageId) && createPortal(
           <div
+            ref={branchDropdownDivRef}
             id='branch-dropdown'
+            className={styles.liquidGlassBg}
             style={{
               position: 'fixed',
               left: branchDropdownPos.left,
@@ -151,29 +263,30 @@ function ActionButtons({
               zIndex: 1000,
               minWidth: branchDropdownPos.width,
               maxWidth: 320,
-              background: '#2A222E',
-              border: '1px solid #332940',
               borderRadius: 12,
-              boxShadow: '0 8px 40px 0 rgba(32,27,37,0.25), 0 1.5px 8px 0 rgba(255,255,255,0.08) inset',
               padding: 8,
+              transformOrigin: branchDropdownPos.transformOrigin || 'top',
+              opacity: branchDropdownPos.opacity,
+              transition: 'opacity 0.1s ease-in-out',
             }}
           >
             <div className='mb-2 text-xs text-[#BFB3CB] font-semibold'>Switch branch</div>
-            <select
-              className='w-full bg-[#2A222E] text-[#BFB3CB] rounded px-2 py-1 border border-[#332940] focus:outline-none mb-2'
+            <Dropdown
+              items={branchOptions.map(opt => ({ code: opt.id, name: opt.label }))}
               value={selectedBranchId}
-              onChange={e => { setSelectedBranchId(e.target.value); setBranchDropdownOpen(null); }}
-              disabled={branchLoading}
-            >
-              {branchOptions.map(opt => (
-                <option key={opt.id} value={opt.id}>{opt.label}</option>
-              ))}
-            </select>
-            <button
-              className='w-full mt-1 px-2 py-1 rounded bg-[#4D1F39] text-[#F4E9EE] hover:bg-[#6A2B4D] transition font-semibold text-xs'
+              onChange={val => { setSelectedBranchId(val); setBranchDropdownOpen(null); }}
+              placeholder='Select branch'
+              hideChevron={false}
+              dropdownZIndex={1100}
+              onClose={() => setBranchDropdownOpen(null)}
+            />
+            <Button
+              className={`w-full mt-1 font-semibold text-xs h-10 ${styles.liquidGlassCard}`}
+              style={{ color: '#F4E9EE', background: 'transparent' }}
               onClick={() => { handleCreateBranch(msg.id || msg.messageId, idx); setBranchDropdownOpen(null); }}
               disabled={branchLoading}
-            >Create new branch from here</button>
+              variant='outline'
+            >Create new branch from here</Button>
           </div>,
           document.body
         )}

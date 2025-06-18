@@ -12,12 +12,18 @@ export default function SettingsApiKeysTab({ user, apiKey, setApiKey, onSaveApiK
     setInputValue(apiKey || '')
   }, [apiKey])
 
+  const isValidOpenRouterKey = key => key && key.length === 73 && key.startsWith('sk-')
+
   const handleSave = async () => {
+    if (!isValidOpenRouterKey(inputValue)) {
+      toast.error('Invalid OpenRouter API key')
+      return
+    }
     setStatus('saving')
     try {
       await onSaveApiKey(inputValue)
       setStatus('saved')
-      toast.success('API key saved!')
+      toast.success('API key encrypted and saved!')
     } catch (e) {
       console.error(e)
       setStatus('error')
@@ -69,6 +75,7 @@ export default function SettingsApiKeysTab({ user, apiKey, setApiKey, onSaveApiK
           checked={useOwnKey}
           onCheckedChange={setUseOwnKey}
           id='use-own-key-switch'
+          disabled={!isValidOpenRouterKey(inputValue)}
         />
         <label htmlFor='use-own-key-switch' className='text-sm text-[#90808A] dark:text-[#bdbdbd] cursor-pointer flex items-center gap-2'>
           Use my own OpenRouter API key for requests

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getFirestore, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../AuthContext';
 
 export function useConversations() {
@@ -14,10 +14,6 @@ export function useConversations() {
       setLoadingConvos(false);
       return;
     }
-    // Load from localStorage first
-    const cached = JSON.parse(localStorage.getItem('conversations') || '{}');
-    const cachedConvos = Object.values(cached).filter(c => c.userId === user.uid);
-    if (cachedConvos.length > 0) setConversations(cachedConvos);
     const db = getFirestore();
     const q = query(
       collection(db, 'conversations'),
@@ -27,10 +23,6 @@ export function useConversations() {
     const unsub = onSnapshot(q, (snap) => {
       const convos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setConversations(convos);
-      // Update localStorage cache
-      const cache = JSON.parse(localStorage.getItem('conversations') || '{}');
-      convos.forEach(c => { cache[c.id] = c; });
-      localStorage.setItem('conversations', JSON.stringify(cache));
       setLoadingConvos(false);
     });
     return () => unsub();
@@ -77,4 +69,18 @@ export function useConversations() {
     hasResults,
     user,
   };
+}
+
+export async function deleteConversation(conversationId) {
+  const db = getFirestore();
+  const convRef = doc(db, 'conversations', conversationId);
+  await deleteDoc(convRef);
+}
+
+export async function deleteConversationsBulk(conversationIds) {
+  const db = getFirestore();
+  for (const id of conversationIds) {
+    const convRef = doc(db, 'conversations', id);
+    await deleteDoc(convRef);
+  }
 } 

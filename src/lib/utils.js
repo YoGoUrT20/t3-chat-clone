@@ -11,4 +11,10 @@ export function sortModelsByFamily(models) {
     if (a.family > b.family) return 1;
     return 0;
   });
+}
+
+export function matchModelFromName(models, modelName) {
+  if (!modelName) return null;
+  let model = models.find(m => m.openRouterName === modelName);
+  return model || null;
 } 

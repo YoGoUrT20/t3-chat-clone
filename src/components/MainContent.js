@@ -1,41 +1,46 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Newspaper, GraduationCap, Sparkles, MessagesSquare,  Settings } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Newspaper, GraduationCap, Sparkles, MessagesSquare,  Settings, Ghost, Globe, LogIn } from 'lucide-react';
 import MessageInput from './MessageInput';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../AuthContext';
-import { CATEGORY_QUESTIONS, defaultQuestions } from '../constants';
+import { CATEGORY_QUESTIONS, defaultQuestions, backgroundOptions } from '../constants';
 import Chat from './Chat';
 import { models } from '../models';
 import LiquidGlassButton from './LiquidGlassButton';
-import { getFirestore, collection, addDoc, doc, updateDoc, getDoc, arrayUnion, Timestamp } from 'firebase/firestore';
-import { useParams, useNavigate } from 'react-router-dom';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { v4 as uuidv4 } from 'uuid';
 import MobileHistory from './MobileHistory';
 import { Button } from './ui/button';
 import { useIsMobile } from '../hooks/use-mobile';
+import handleReroll from '../lib/handleReroll';
+import handleSubmit from '../lib/handleSubmit';
+import FirestoreStreamListener from './FirestoreStreamListener';
+import { matchModelFromName } from '../lib/utils';
+import styles from './ModelSelection.module.css';
+import Tooltip from './Tooltip';
+import { createPortal } from 'react-dom';
 
 function MainContent({ showSidebar, setShowSidebar }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [message, setMessage] = useState('');
   const { user, apiKey } = useAuth();
   const [firstMessageSent, setFirstMessageSent] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedModel, setSelectedModel] = useState(() => {
-    // Try to get default model from localStorage
-    let defaultModelName = localStorage.getItem('default_model');
-    let model = defaultModelName ? models.find(m => m.name === defaultModelName) : null;
-    // Fallback to deepseek-v3-0324
-    if (!model) model = models.find(m => m.name === 'deepseek-v3-0324');
-    // If still not accessible or blocked, pick first accessible model
-    if (!model || model.apiKeyRequired || (!model.freeAccess && !localStorage.getItem('use_own_api_key') && !localStorage.getItem('subscription_active'))) {
-      model = models.find(m => !m.apiKeyRequired && (m.freeAccess || localStorage.getItem('use_own_api_key') === 'true' || localStorage.getItem('subscription_active') === 'true'));
-    }
-    return model;
-  });
+  const [selectedModel, setSelectedModel] = useState(null);
   const [lastUsedModelFamily, setLastUsedModelFamily] = useState('gemini');
   const [chatMessages, setChatMessages] = useState([]);
+  const [messagesLeft, setMessagesLeft] = useState(20);
+  const [resetAt, setResetAt] = useState(null);
+  const getGuestMessageCount = () => {
+    const val = localStorage.getItem('guest_message_count');
+    return val ? parseInt(val, 10) : 0;
+  };
+  const setGuestMessageCount = (val) => {
+    localStorage.setItem('guest_message_count', String(val));
+  };
   const abortControllerRef = useRef(null);
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -43,138 +48,201 @@ function MainContent({ showSidebar, setShowSidebar }) {
   const [branches, setBranches] = useState({});
   const [selectedBranchId, setSelectedBranchId] = useState('root');
   const [branchLoading, setBranchLoading] = useState(true);
-  const [isThinking, setIsThinking] = useState(false);
-  const [isTemporaryChat, setIsTemporaryChat] = useState(false);
+  const [isTemporaryChat, setIsTemporaryChat] = useState(!user);
+  const [useWebSearch, setUseWebSearch] = useState(false);
   const isMobile = useIsMobile();
   const [showMobileHistory, setShowMobileHistory] = useState(false);
   const chatContainerRef = useRef(null);
-
-  const backgroundOptions = [
-    { name: 'Default', value: 'default' },
-    { name: 'Glowing Blue', value: 'glow-blue', style: { background: 'radial-gradient(circle at 60% 40%, #3bb0ff 0%, #a259ff 100%)', boxShadow: '0 0 80px 10px #3bb0ff88' } },
-    { name: 'Glowing Pink', value: 'glow-pink', style: { background: 'radial-gradient(circle at 40% 60%, #ff70a6 0%, #ff9770 100%)', boxShadow: '0 0 80px 10px #ff70a688' } },
-    { name: 'Model: Gemini', value: 'model-gemini', style: { background: 'radial-gradient(circle at 60% 40%, #9168C0 0%, #1BA1E3 100%)' } },
-    { name: 'Model: Llama', value: 'model-llama', image: '/llama.svg', style: { background: '#fff url(/llama.svg) center/cover no-repeat' } },
-    { name: 'Model: Claude', value: 'model-claude', image: '/claude.svg', style: { background: '#fff url(/claude.svg) center/cover no-repeat' } },
-    { name: 'Model: DeepSeek', value: 'model-deepseek', image: '/deepseek.svg', style: { background: '#fff url(/deepseek.svg) center/cover no-repeat' } },
-    { name: 'Model: Qwen', value: 'model-qwen', image: '/qwen.svg', style: { background: '#fff url(/qwen.svg) center/cover no-repeat' } },
-    { name: 'Model: Grok', value: 'model-grok', image: '/grok.svg', style: { background: '#fff url(/grok.svg) center/cover no-repeat' } },
-    { name: 'Quiver Logo', value: 'quiver', image: '/quiver.svg', style: { background: '#fff url(/quiver.svg) center/cover no-repeat' } },
-    { name: 'Logo 192', value: 'logo192', image: '/logo192.png', style: { background: '#fff url(/logo192.png) center/cover no-repeat' } },
-    { name: 'Logo 512', value: 'logo512', image: '/logo512.png', style: { background: '#fff url(/logo512.png) center/cover no-repeat' } },
-  ]
-  const backgroundName = localStorage.getItem('chat_bg') || 'default'
-  const bgObj = backgroundOptions.find(b => b.value === backgroundName) || backgroundOptions[0]
+  const isTemporaryChatRef = useRef(isTemporaryChat)
+  const [firestoreStreamActive, setFirestoreStreamActive] = useState(false);
+  const [firestoreStreamInfo, setFirestoreStreamInfo] = useState({ streamId: null, messageId: null });
+  const lastPlaceholderIdRef = useRef(null);
+  const lastStreamMessageIdRef = useRef(null);
+  const chatMessagesRef = useRef(chatMessages);
+  const firestoreStreamInfoRef = useRef(firestoreStreamInfo);
+  const webSearchEnableToastShown = useRef(false);
+  const webSearchDisableToastShown = useRef(false);
+  const [iconTooltip, setIconTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
+  const [modelSelectionOpen, setModelSelectionOpen] = useState(false);
+  const [toolSelectionOpen, setToolSelectionOpen] = useState(false);
 
   useEffect(() => {
-    setMessage('');
-  }, []); // Reset message when key changes (component remounts)
+    chatMessagesRef.current = chatMessages;
+  }, [chatMessages]);
 
   useEffect(() => {
-    if (id) {
-      setChatLoading(true);
-      // Load conversation by id
-      const db = getFirestore();
-      getDoc(doc(db, 'conversations', id)).then(async convSnap => {
-        if (convSnap.exists()) {
-          const data = convSnap.data();
-          setConversationId(id);
-          setChatMessages(
-            (data.messages || []).map((msg, i) => ({
-              id: i,
-              sender: msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'llm' : msg.role),
-              text: msg.content || msg.text || '',
-              model: msg.model || data.model || null
-            }))
-          );
-          setFirstMessageSent(true);
-          setLastUsedModelFamily(data.model?.split('/')[0] || 'gemini');
+    firestoreStreamInfoRef.current = firestoreStreamInfo;
+  }, [firestoreStreamInfo]);
 
-          // --- Fetch branches and set them in state ---
-          try {
-            const FUNCTIONS_URL = process.env.REACT_APP_FUNCTIONS_URL;
-            const apiKey = localStorage.getItem('apiKey') || '';
-            const res = await fetch(`${FUNCTIONS_URL}/getChatWithBranches`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
-              body: JSON.stringify({ chatid: id }),
-            });
-            if (res.ok) {
-              const branchData = await res.json();
-              setBranches(branchData.branches || {});
-              setSelectedBranchId(Object.keys(branchData.branches || { root: 1 })[0] || 'root');
-              setBranchLoading(false);
-            } else {
-              setBranches({});
-              setSelectedBranchId('root');
-              setBranchLoading(false);
+  useEffect(() => { isTemporaryChatRef.current = isTemporaryChat }, [isTemporaryChat])
+
+  // Always force temporary chat for guests
+  useEffect(() => {
+    if (!user) {
+      setIsTemporaryChat(true);
+      setConversationId(null);
+      setChatMessages([]);
+      setFirstMessageSent(false);
+      setSelectedCategory(null);
+      setLastUsedModelFamily('gemini');
+      setMessage('');
+      setChatLoading(false);
+      // Always select gemini-2.0-flash-lite for guests if no model is selected
+      setSelectedModel(models.find(m => m.name === 'gemini-2.0-flash-lite'));
+      return;
+    }
+    if (!id) {
+      // New chat: select default model
+      let defaultModelName = user?.defaultModel || localStorage.getItem('default_model');
+      let model = defaultModelName ? models.find(m => m.name === defaultModelName) : null;
+      if (!model) model = models.find(m => m.name === 'deepseek-v3-0324');
+      const useOwnKey = (user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true';
+      const hasSubscription = user && user.status === 'premium';
+      if (!model || (model.apiKeyRequired && !useOwnKey) || (!model.freeAccess && !hasSubscription && !useOwnKey)) {
+        model = models.find(m => (!m.apiKeyRequired || useOwnKey) && (m.freeAccess || hasSubscription || useOwnKey));
+      }
+      setSelectedModel(model);
+      return;
+    }
+    setChatLoading(true);
+    const db = getFirestore();
+    getDoc(doc(db, 'conversations', id)).then(async convSnap => {
+      let loadedMessages = [];
+      if (convSnap.exists()) {
+        const data = convSnap.data();
+        if (firestoreStreamActive) {
+          setChatLoading(false);
+          return;
+        }
+        loadedMessages = (data.messages || []).map((msg, i) => {
+          let thinking = '';
+          let mainContent = msg.content || msg.text || '';
+          if ((msg.role === 'assistant' || msg.sender === 'llm') && typeof mainContent === 'string') {
+            const thinkingMatch = mainContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
+            if (thinkingMatch) {
+              thinking = thinkingMatch[1];
+              mainContent = mainContent.replace(/<thinking>[\s\S]*?<\/thinking>/, '');
             }
-          } catch {
+          }
+          const mapped = {
+            id: i,
+            sender: msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'llm' : msg.role),
+            text: mainContent,
+            thinking,
+            model: msg.model || data.model || null
+          };
+          if (msg.images) mapped.images = msg.images;
+          if (msg.id) mapped.messageId = msg.id;
+          return mapped;
+        });
+        setConversationId(id);
+        setChatMessages(loadedMessages);
+        setFirstMessageSent(true);
+        setLastUsedModelFamily(data.model?.split('/')[0] || 'gemini');
+        // --- Model selection for existing chat ---
+        let lastMsgModelName = null;
+        if (loadedMessages.length > 0) {
+          // Find last message with a model
+          for (let i = loadedMessages.length - 1; i >= 0; i--) {
+            if (loadedMessages[i].model) {
+              lastMsgModelName = loadedMessages[i].model;
+              break;
+            }
+          }
+        }
+        let model = null;
+        if (lastMsgModelName) {
+          model = matchModelFromName(models, lastMsgModelName);
+        }
+        if (!model) {
+          // fallback to default model logic
+          let defaultModelName = user?.defaultModel || localStorage.getItem('default_model');
+          model = defaultModelName ? models.find(m => m.name === defaultModelName) : null;
+          if (!model) model = models.find(m => m.name === 'deepseek-v3-0324');
+          const useOwnKey = (user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true';
+          const hasSubscription = user && user.status === 'premium';
+          if (!model || (model.apiKeyRequired && !useOwnKey) || (!model.freeAccess && !hasSubscription && !useOwnKey)) {
+            model = models.find(m => (!m.apiKeyRequired || useOwnKey) && (m.freeAccess || hasSubscription || useOwnKey));
+          }
+        }
+        setSelectedModel(model);
+        // --- Fetch branches and set them in state ---
+        try {
+          const FUNCTIONS_URL = process.env.REACT_APP_FUNCTIONS_URL;
+          const apiKey = localStorage.getItem('apiKey') || '';
+          const res = await fetch(`${FUNCTIONS_URL}/getChatWithBranches`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+            body: JSON.stringify({ chatid: id }),
+          });
+          if (res.ok) {
+            const branchData = await res.json();
+            setBranches(branchData.branches || {});
+            setSelectedBranchId(Object.keys(branchData.branches || { root: 1 })[0] || 'root');
+            setBranchLoading(false);
+          } else {
             setBranches({});
             setSelectedBranchId('root');
             setBranchLoading(false);
           }
-          // --- End fetch branches ---
+        } catch {
+          setBranches({});
+          setSelectedBranchId('root');
+          setBranchLoading(false);
         }
-        setChatLoading(false);
-      });
-      // Check for ongoing stream for this chat
-      fetch(`${process.env.REACT_APP_FUNCTIONS_URL}/getOngoingStream?chat_id=${id}`)
-        .then(res => {
-          if (res.status === 404) return null;
-          return res.body;
-        })
-        .then(async body => {
-          if (!body) return;
-          const reader = body.getReader();
-          setIsThinking(false);
-          // As tokens arrive, update the message immediately
-          const processPart = (part, llmTextRef) => {
-            const trimmed = part.trim();
-            if (!trimmed) return;
-            if (trimmed.startsWith(':')) {
-              if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
-              return;
+        // --- End fetch branches ---
+      }
+      setChatLoading(false);
+    });
+  }, [id, user]);
+
+  // Effect 2: Check Firestore stream doc and add placeholder/listener if needed
+  useEffect(() => {
+    if (!id || !firstMessageSent || !user) return;
+  
+    const checkStream = async () => {
+      const streamDocRef = doc(getFirestore(), 'streams', id);
+      const streamDocSnap = await getDoc(streamDocRef);
+  
+      if (streamDocSnap.exists()) {
+        const streamData = streamDocSnap.data();
+  
+        if (streamData && streamData.messageid && !streamData.finished) {
+          if (lastStreamMessageIdRef.current !== streamData.messageid) {
+            const alreadyExists = chatMessagesRef.current.some(m => m.sender === 'llm' && m.messageId === streamData.messageid);
+            
+            if (alreadyExists) {
+              if (firestoreStreamInfoRef.current.messageId !== streamData.messageid) {
+                setFirestoreStreamInfo({ streamId: id, messageId: streamData.messageid });
+                setFirestoreStreamActive(true);
+              }
+            } else if (lastPlaceholderIdRef.current !== streamData.messageid) {
+              lastPlaceholderIdRef.current = streamData.messageid;
+              setChatMessages(prevMsgs => [
+                ...prevMsgs,
+                {
+                  id: streamData.messageid,
+                  messageId: streamData.messageid,
+                  sender: 'llm',
+                  text: '',
+                  model: streamData.model || null,
+                },
+              ]);
+              setTimeout(() => {
+                setFirestoreStreamInfo({ streamId: id, messageId: streamData.messageid });
+                setFirestoreStreamActive(true);
+              }, 0);
             }
-            if (trimmed.startsWith('data:')) {
-              const dataStr = trimmed.slice(5).trim();
-              if (dataStr === '[DONE]') return;
-              try {
-                const json = JSON.parse(dataStr);
-                const text =
-                  (json.reasoning) ||
-                  (json.content) ||
-                  (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
-                if (text) {
-                  llmTextRef.current += text;
-                  setIsThinking(false);
-                  setChatMessages(msgs => {
-                    const last = msgs[msgs.length - 1];
-                    if (last && last.sender === 'llm') {
-                      return [...msgs.slice(0, -1), { ...last, text: llmTextRef.current }];
-                    } else {
-                      return [...msgs, { id: Date.now() + 1, sender: 'llm', text: llmTextRef.current }];
-                    }
-                  });
-                }
-              } catch {}
-            }
-          };
-          const llmTextRef = { current: '' };
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = new TextDecoder().decode(value);
-            chunk.split('\n').forEach(part => processPart(part, llmTextRef));
           }
-          setIsThinking(false);
-          setLoading(false);
-        });
-    }
-  }, [id]);
+        }
+      }
+    };
+  
+    checkStream();
+  }, [id, firstMessageSent, user]);
 
   useEffect(() => {
-    if (!id) {
+    if (!id || !user) {
       setFirstMessageSent(false);
       setChatMessages([]);
       setConversationId(null);
@@ -183,7 +251,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
       setMessage('');
       setChatLoading(false);
     }
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     if (user && !id) {
@@ -196,12 +264,32 @@ function MainContent({ showSidebar, setShowSidebar }) {
       // If still not accessible or blocked, pick first accessible model
       const useOwnKey = (user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true';
       const hasSubscription = user && user.status === 'premium';
-      if (!model || model.apiKeyRequired && !useOwnKey || (!model.freeAccess && !hasSubscription && !useOwnKey)) {
+      if (!model || (model.apiKeyRequired && !useOwnKey) || (!model.freeAccess && !hasSubscription && !useOwnKey)) {
         model = models.find(m => (!m.apiKeyRequired || useOwnKey) && (m.freeAccess || hasSubscription || useOwnKey));
       }
       setSelectedModel(model);
     }
   }, [user, id]);
+
+  useEffect(() => {
+    const handleTempChat = () => {
+      if (typeof handleToggleTemporaryChat === 'function') {
+        handleToggleTemporaryChat()
+        toast.success('Started temporary chat')
+      }
+    }
+    const handleSelectModel = () => {
+      if (typeof window.openModelSelectMenu === 'function') {
+        window.openModelSelectMenu()
+      }
+    }
+    window.addEventListener('temp-chat', handleTempChat)
+    window.addEventListener('select-model', handleSelectModel)
+    return () => {
+      window.removeEventListener('temp-chat', handleTempChat)
+      window.removeEventListener('select-model', handleSelectModel)
+    }
+  }, [])
 
   const handleQuestionClick = (question) => {
     setMessage(question);
@@ -213,6 +301,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
   };
 
   const handleToggleTemporaryChat = () => {
+    if (!user) return; // Guests are always in temp mode
     if (isTemporaryChat) {
       setIsTemporaryChat(false);
       setFirstMessageSent(false);
@@ -230,461 +319,174 @@ function MainContent({ showSidebar, setShowSidebar }) {
       setSelectedBranchId('root');
       setBranchLoading(false);
     }
+    navigate('/');
   };
 
-  const handleSubmit = async (data, event, model) => {
-    if (isTemporaryChat) {
-      setFirstMessageSent(true);
-      setMessage('');
-      if (model && model.family) setLastUsedModelFamily(model.family);
-      const userMsg = { role: 'user', content: data.prompt, model: model?.openRouterName || 'openai/gpt-4o' };
-      const modelObj = model || selectedModel;
-      const newMessages = [...chatMessages, { id: Date.now(), sender: 'user', text: data.prompt }];
-      setChatMessages(newMessages);
-      setLoading(true);
-      setIsThinking(false);
-      const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
-      const apiKey = localStorage.getItem('apiKey') || '';
-      const streamId = uuidv4();
-      let fromIndex = 0;
-      debugStreamState('handleSubmit - start', { streamId, fromIndex, prompt: data.prompt });
-      try {
-        const res = await fetch(`${process.env.REACT_APP_FUNCTIONS_URL}/llmStreamResumable`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey || '' },
-          body: JSON.stringify({ model: modelName, messages: [userMsg], streamId, fromIndex }),
-        });
-        if (res.status === 429) {
-          try {
-            const data = await res.json();
-            if (data && data.error === 'rate_limit') {
-              toast.error(data.message, { icon: <Sparkles size={18} /> });
-              setIsThinking(false);
-              setLoading(false);
-              return;
-            }
-          } catch {}
-        }
-        if (!res.body) throw new Error('No response body');
-        const reader = res.body.getReader();
-        setIsThinking(false);
-        const processChunk = (chunk, llmTextRef) => {
-          chunk.split('\n').forEach(function processPart(part) {
-            const trimmed = part.trim();
-            if (!trimmed) return;
-            if (trimmed.startsWith(':')) {
-              if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
-              return;
-            }
-            if (trimmed.startsWith('data:')) {
-              const dataStr = trimmed.slice(5).trim();
-              if (dataStr === '[DONE]') return;
-              try {
-                const json = JSON.parse(dataStr);
-                const text =
-                  (json.reasoning) ||
-                  (json.content) ||
-                  (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
-                if (text) {
-                  llmTextRef.current += text;
-                  setIsThinking(false);
-                  setChatMessages(msgs => {
-                    const last = msgs[msgs.length - 1];
-                    if (last && last.sender === 'llm') {
-                      return [...msgs.slice(0, -1), { ...last, text: llmTextRef.current }];
-                    } else {
-                      return [...msgs, { id: Date.now() + 1, sender: 'llm', text: llmTextRef.current }];
-                    }
-                  });
-                  fromIndex++;
-                  debugStreamState('handleSubmit - token', { streamId, fromIndex, partialResponse: llmTextRef.current });
-                }
-              } catch {}
-            }
-          });
-        };
-        const llmTextRef = { current: '' };
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = new TextDecoder().decode(value);
-          processChunk(chunk, llmTextRef);
-        }
-        setIsThinking(false);
-        setLoading(false);
-      } catch (err) {
-        setChatMessages(msgs => [...msgs, { id: Date.now() + 2, sender: 'llm', text: 'Error: ' + (err.message || 'Unknown error') }]);
-        setIsThinking(false);
-        setLoading(false);
+  // Remove the old handleReroll function and replace with a wrapper that calls the imported one
+  const handleRerollWrapper = (llmMsg, newModel) => {
+    handleReroll({
+      llmMsg,
+      newModel,
+      chatMessages,
+      setChatMessages,
+      setLoading,
+      apiKey,
+      conversationId: user ? conversationId : null,
+      toast,
+      Sparkles,
+      handleReroll: handleRerollWrapper,
+      FUNCTIONS_URL: process.env.REACT_APP_FUNCTIONS_URL,
+      useWebSearch,
+      selectedBranchId,
+    });
+  };
+
+  // New handleSubmit wrapper for MessageInput
+  const handleSubmitWrapper = (data, event, model) => {
+    if (!user) {
+      const currentCount = getGuestMessageCount();
+      if (currentCount >= 5) {
+        toast.error("You've reached the 5-message limit for guests. Please sign in to continue.");
+        return;
       }
-      return;
+      setGuestMessageCount(currentCount + 1);
     }
-    if (user) {
-      const db = getFirestore()
-      const userRef = doc(db, 'users', user.uid)
-      const snap = await getDoc(userRef)
-      let messagesLeft = 20
-      let resetAt = null
-      const now = Date.now()
+    handleSubmit({
+      data,
+      event,
+      model,
+      isTemporaryChat: !user || isTemporaryChat,
+      setFirstMessageSent,
+      setMessage,
+      setLastUsedModelFamily,
+      chatMessages,
+      setChatMessages,
+      setLoading,
+      user,
+      selectedModel,
+      conversationId: user ? conversationId : null,
+      setConversationId: user ? setConversationId : () => {},
+      navigate,
+      id: user ? id : null,
+      toast,
+      Sparkles,
+      selectedBranchId,
+      branches,
+      setBranches,
+      branchLoading,
+      setBranchLoading,
+      apiKey,
+      FUNCTIONS_URL: process.env.REACT_APP_FUNCTIONS_URL,
+      abortControllerRef,
+      useWebSearch,
+    });
+    // Refetch quota after sending
+    setTimeout(async () => {
+      if (!user) return;
+      const db = getFirestore();
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
       if (snap.exists()) {
-        const d = snap.data()
-        messagesLeft = typeof d.messagesLeft === 'number' ? d.messagesLeft : 20
-        resetAt = typeof d.resetAt === 'number' ? d.resetAt : null
+        const data = snap.data();
+        setMessagesLeft(typeof data.messagesLeft === 'number' ? data.messagesLeft : 20);
+        setResetAt(typeof data.resetAt === 'number' ? data.resetAt : null);
       }
-      if (!resetAt || now > resetAt) {
-        messagesLeft = 20
-        resetAt = now + 8 * 60 * 60 * 1000
-      }
-      if (messagesLeft <= 0) {
-        toast.error('Message limit reached. Wait for reset.')
-        return
-      }
-      await updateDoc(userRef, { messagesLeft: messagesLeft - 1, resetAt })
-    }
-    setFirstMessageSent(true);
-    setMessage('');
-    if (model && model.family) setLastUsedModelFamily(model.family);
-    const userMsg = { role: 'user', content: data.prompt, model: model?.openRouterName || 'openai/gpt-4o' };
-    const db = getFirestore();
-    const modelObj = model || selectedModel;
-    let convId = conversationId;
-    const FUNCTIONS_URL = process.env.REACT_APP_FUNCTIONS_URL;
+    }, 500);
+  };
 
-    if (selectedBranchId && selectedBranchId !== 'root' && convId) {
-      // Add message to branch
-      const apiKey = localStorage.getItem('apiKey') || '';
-      const res = await fetch(`${FUNCTIONS_URL}/addMessageToBranch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
-        body: JSON.stringify({ chatid: convId, branchId: selectedBranchId, message: userMsg }),
-      });
-      if (!res.ok) {
-        toast.error('Failed to add message to branch');
-        return;
-      }
-      const dataBranch = await res.json();
-      setBranches(prev => ({ ...prev, [selectedBranchId]: dataBranch.branch }));
-      setMessage('');
-      setFirstMessageSent(true);
-      setLoading(true);
-      setIsThinking(false);
-      // Now stream LLM response for this branch
-      let branchMessages = dataBranch.branch.messages || [];
-      branchMessages = [...branchMessages, userMsg];
-      const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
-      const apiKey2 = localStorage.getItem('apiKey') || '';
-      const res2 = await fetch(`${FUNCTIONS_URL}/llmStreamResumable`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey2 },
-        body: JSON.stringify({ model: modelName, messages: branchMessages, chat_id: convId }),
-      });
-      if (res2.status === 429) {
-        try {
-          const data = await res2.json();
-          if (data && data.error === 'rate_limit') {
-            toast.error(data.message, { icon: <Sparkles size={18} /> });
-            setIsThinking(false);
-            setLoading(false);
-            return;
-          }
-        } catch {}
-      }
-      if (!res2.body) throw new Error('No response body');
-      const reader = res2.body.getReader();
-      setIsThinking(false);
-      const processBranchChunk = (chunk, llmTextRef) => {
-        chunk.split('\n').forEach(function processPart(part) {
-          const trimmed = part.trim();
-          if (!trimmed) return;
-          if (trimmed.startsWith(':')) {
-            if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
-            return;
-          }
-          if (trimmed.startsWith('data:')) {
-            const dataStr = trimmed.slice(5).trim();
-            if (dataStr === '[DONE]') return;
-            try {
-              const json = JSON.parse(dataStr);
-              const text =
-                (json.reasoning) ||
-                (json.content) ||
-                (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
-              if (text) {
-                llmTextRef.current += text;
-                setIsThinking(false);
-                setBranches(prev => {
-                  const updated = { ...prev };
-                  if (updated[selectedBranchId]) {
-                    const msgs = updated[selectedBranchId].messages || [];
-                    if (msgs.length > 0 && msgs[msgs.length - 1].role === 'assistant') {
-                      msgs[msgs.length - 1].content = llmTextRef.current;
-                    } else {
-                      msgs.push({ role: 'assistant', content: llmTextRef.current, model: modelObj?.openRouterName || 'openai/gpt-4o' });
-                    }
-                    updated[selectedBranchId] = { ...updated[selectedBranchId], messages: [...msgs] };
-                  }
-                  return updated;
-                });
-              }
-            } catch {}
-          }
-        });
-      };
-      const llmTextBranchRef = { current: '' };
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = new TextDecoder().decode(value);
-        processBranchChunk(chunk, llmTextBranchRef);
-      }
-      setIsThinking(false);
-      setLoading(false);
-    } else {
-      if (!convId) {
-        // Create new conversation in Firestore with the user message
-        const convRef = await addDoc(collection(db, 'conversations'), {
-          userId: user?.uid || 'anon',
-          createdAt: Timestamp.now(),
-          lastUsed: Timestamp.now(),
-          model: modelObj?.openRouterName || 'openai/gpt-4o',
-          modelDisplayName: modelObj?.displayName || 'GPT-4o',
-          messages: [userMsg],
-        });
-        convId = convRef.id;
-        setConversationId(convId);
-        if (id !== convId) {
-          navigate(`/chat/${convId}`, { replace: true });
+  // Firestore stream listener callback
+  const handleFirestoreStreamUpdate = useCallback(({ message, finished }) => {
+    const messageId = firestoreStreamInfoRef.current.messageId;
+    if (!messageId) return;
+
+    setChatMessages(msgs => {
+      const msgIndex = msgs.findIndex(m => m.messageId === messageId);
+      if (msgIndex !== -1) {
+        // Parse <thinking>...</thinking> and main content from the incoming message
+        let thinking = '';
+        let mainContent = message || '';
+        const thinkingMatch = mainContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
+        if (thinkingMatch) {
+          thinking = thinkingMatch[1];
+          mainContent = mainContent.replace(/<thinking>[\s\S]*?<\/thinking>/, '');
         }
-      } else {
-        // Always append user message to Firestore for existing conversation
-        const convRef = doc(db, 'conversations', convId);
-        await updateDoc(convRef, {
-          messages: arrayUnion(userMsg),
-          lastUsed: Timestamp.now(),
-        });
+
+        const updated = [...msgs];
+        updated[msgIndex] = { ...updated[msgIndex], text: mainContent, thinking };
+        return updated;
       }
+      return msgs;
+    });
+
+    if (finished) {
+      setFirestoreStreamActive(false);
     }
-    const newMessages = [...chatMessages, { id: Date.now(), sender: 'user', text: data.prompt }];
-    setChatMessages(newMessages);
-    setLoading(true);
-    setIsThinking(false);
-    const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
-    abortControllerRef.current?.abort();
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    let convoMessages = [userMsg];
-    // Always send the full conversation history for context
-    if (convId) {
-      const convSnap = await getDoc(doc(db, 'conversations', convId));
-      if (convSnap.exists()) {
-        convoMessages = convSnap.data().messages ? [...convSnap.data().messages, userMsg] : [userMsg];
-      }
-    }
-    try {
-      const res = await fetch(`${FUNCTIONS_URL}/llmStreamResumable`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey || '' },
-        body: JSON.stringify({ model: modelName, messages: convoMessages, chat_id: convId }),
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      setUseWebSearch(prev => {
+        const next = !prev;
+        if (next && !webSearchEnableToastShown.current) {
+          toast.success('Web search enabled');
+          webSearchEnableToastShown.current = true;
+          webSearchDisableToastShown.current = false;
+        } else if (!next && !webSearchDisableToastShown.current) {
+          toast.success('Web search disabled');
+          webSearchDisableToastShown.current = true;
+          webSearchEnableToastShown.current = false;
+        }
+        return next;
       });
-      if (res.status === 429) {
-        try {
-          const data = await res.json();
-          if (data && data.error === 'rate_limit') {
-            toast.error(data.message, { icon: <Sparkles size={18} /> });
-            setIsThinking(false);
-            setLoading(false);
-            return;
-          }
-        } catch {}
-      }
-      if (res.status === 500) {
-        toast.error('We ran out of free quota. :(');
-        setIsThinking(false);
-        setLoading(false);
-        return;
-      }
-      if (!res.body) throw new Error('No response body');
-      const reader = res.body.getReader();
-      setIsThinking(false);
-      const processChunk = (chunk, llmTextRef) => {
-        chunk.split('\n').forEach(function processPart(part) {
-          const trimmed = part.trim();
-          if (!trimmed) return;
-          if (trimmed.startsWith(':')) {
-            if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
-            return;
-          }
-          if (trimmed.startsWith('data:')) {
-            const dataStr = trimmed.slice(5).trim();
-            if (dataStr === '[DONE]') return;
-            try {
-              const json = JSON.parse(dataStr);
-              const text =
-                (json.reasoning) ||
-                (json.content) ||
-                (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
-              if (text) {
-                llmTextRef.current += text;
-                setIsThinking(false);
-                setChatMessages(msgs => {
-                  const last = msgs[msgs.length - 1];
-                  if (last && last.sender === 'llm') {
-                    return [...msgs.slice(0, -1), { ...last, text: llmTextRef.current }];
-                  } else {
-                    return [...msgs, { id: Date.now() + 1, sender: 'llm', text: llmTextRef.current }];
-                  }
-                });
-              }
-            } catch {}
-          }
-        });
-      };
-      const llmTextRef = { current: '' };
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = new TextDecoder().decode(value);
-        processChunk(chunk, llmTextRef);
-      }
-      setIsThinking(false);
-      setLoading(false);
-    } catch (err) {
-      setChatMessages(msgs => [...msgs, { id: Date.now() + 2, sender: 'llm', text: 'Error: ' + (err.message || 'Unknown error') }]);
-      setIsThinking(false);
-      setLoading(false);
-    }
+    };
+    window.addEventListener('enable-search-tool', handler);
+    return () => window.removeEventListener('enable-search-tool', handler);
+  }, []);
+
+  const backgroundName = localStorage.getItem('chat_bg') || 'model-glow';
+  const bgObj = backgroundOptions.find(b => b.value === backgroundName) || backgroundOptions[0];
+
+  // Handler for model selection open/close
+  const handleModelSelectionOpen = (open) => {
+    setModelSelectionOpen(open);
   };
 
-  // Restore handleReroll function
-  const handleReroll = async (llmMsg, newModel) => {
-    setLoading(true);
-    setIsThinking(false);
-    const modelObj = models.find(m => m.name === newModel);
-    const modelName = modelObj?.openRouterName || 'openai/gpt-4o';
-    const FUNCTIONS_URL = process.env.REACT_APP_FUNCTIONS_URL;
-    // Find the user message before this llm message
-    const llmMsgIdx = chatMessages.findIndex(m => m.id === llmMsg.id);
-    let userMsg = null;
-    for (let i = llmMsgIdx - 1; i >= 0; i--) {
-      if (chatMessages[i].sender === 'user') {
-        userMsg = chatMessages[i];
-        break;
-      }
-    }
-    if (!userMsg) {
-      setIsThinking(false);
-      setLoading(false);
-      return;
-    }
-    // Get conversation history up to and including this user message
-    let convoMessages = [];
-    for (let i = 0; i <= llmMsgIdx; i++) {
-      if (chatMessages[i].sender === 'user') {
-        convoMessages.push({ role: 'user', content: chatMessages[i].text });
-      } else if (chatMessages[i].sender === 'llm' && chatMessages[i].id !== llmMsg.id) {
-        convoMessages.push({ role: 'assistant', content: chatMessages[i].text });
-      }
-    }
-    // Add the user message again to reroll
-    convoMessages.push({ role: 'user', content: userMsg.text });
-    // Remove the old LLM message to trigger exit animation
-    setChatMessages(msgs => msgs.filter(m => m.id !== llmMsg.id));
-    await new Promise(res => setTimeout(res, 120));
-    try {
-      const res = await fetch(`${FUNCTIONS_URL}/llmStreamResumable`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey || '' },
-        body: JSON.stringify({ model: modelName, messages: convoMessages, chat_id: conversationId }),
-      });
-      if (res.status === 429) {
-        try {
-          const data = await res.json();
-          if (data && data.error === 'rate_limit') {
-            toast.error(data.message, { icon: <Sparkles size={18} /> });
-            setIsThinking(false);
-            setLoading(false);
-            return;
-          }
-        } catch {}
-      }
-      if (res.status === 500) {
-        toast.error(
-          <span>
-            Error 500 from model endpoint.<br />
-            <button
-              className='underline text-pink-300 ml-1'
-              onClick={() => handleReroll(llmMsg, newModel)}
-            >Reroll again</button>
-          </span>
-        );
-        setIsThinking(false);
-        setLoading(false);
-        return;
-      }
-      if (!res.body) throw new Error('No response body');
-      const reader = res.body.getReader();
-      setIsThinking(false);
-      const processRerollChunk = (chunk, llmTextRef) => {
-        chunk.split('\n').forEach(function processPart(part) {
-          const trimmed = part.trim();
-          if (!trimmed) return;
-          if (trimmed.startsWith(':')) {
-            if (trimmed.includes('OPENROUTER PROCESSING')) setIsThinking(true);
-            return;
-          }
-          if (trimmed.startsWith('data:')) {
-            const dataStr = trimmed.slice(5).trim();
-            if (dataStr === '[DONE]') return;
-            try {
-              const json = JSON.parse(dataStr);
-              const text =
-                (json.reasoning) ||
-                (json.content) ||
-                (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content);
-              if (text) {
-                llmTextRef.current += text;
-                setIsThinking(false);
-                setChatMessages(msgs => {
-                  const idx = msgs.findIndex(m => m.id === llmMsg.id);
-                  if (idx === -1) return msgs;
-                  const newMsgs = [...msgs];
-                  newMsgs[idx] = { ...newMsgs[idx], text: llmTextRef.current, model: modelObj.openRouterName };
-                  return newMsgs;
-                });
-              }
-            } catch {}
-          }
-        });
-      };
-      const llmTextRerollRef = { current: '' };
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = new TextDecoder().decode(value);
-        processRerollChunk(chunk, llmTextRerollRef);
-      }
-      setIsThinking(false);
-      setLoading(false);
-    } catch (err) {
-      toast.error(
-        <span>
-          Error: {err.message || 'Unknown error'}<br />
-          <button
-            className='underline text-pink-300 ml-1'
-            onClick={() => handleReroll(llmMsg, newModel)}
-          >Reroll again</button>
-        </span>
-      );
-      setChatMessages(msgs => [...msgs, { id: Date.now() + 2, sender: 'llm', text: 'Error: ' + (err.message || 'Unknown error') }]);
-      setIsThinking(false);
-      setLoading(false);
-    }
+  // Handler for tool selection open/close
+  const handleToolSelectionOpen = (open) => {
+    setToolSelectionOpen(open);
   };
 
-  // Add debug logging to stream persistence
-  function debugStreamState(label, state) {
-    console.log(`[STREAM DEBUG] ${label}:`, JSON.stringify(state));
-  }
+  // --- Auto-submit prompt from query param (for shared chat fork) ---
+  useEffect(() => {
+    if (!id) return;
+    const params = new URLSearchParams(location.search);
+    const prompt = params.get('prompt');
+    if (
+      prompt &&
+      chatMessages.length > 0 &&
+      // Check if the prompt hasn't been added as a user message yet
+      !chatMessages.some(m => m.sender === 'user' && m.text === prompt)
+    ) {
+      handleSubmitWrapper({ prompt }, null, selectedModel);
+      params.delete('prompt');
+      navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }
+  }, [id, location.search, chatMessages, selectedModel, conversationId]);
+
+  useEffect(() => {
+    async function fetchQuota() {
+      if (!user) return;
+      const db = getFirestore();
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        setMessagesLeft(typeof data.messagesLeft === 'number' ? data.messagesLeft : 20);
+        setResetAt(typeof data.resetAt === 'number' ? data.resetAt : null);
+      }
+    }
+    fetchQuota();
+  }, [user, id]);
 
   return (
     <>
@@ -706,6 +508,16 @@ function MainContent({ showSidebar, setShowSidebar }) {
           >
             <MessagesSquare className='w-5 h-5' />
           </Button>
+          {!user && (
+            <Button
+              variant='outline'
+              className='flex items-center justify-center bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 focus:ring-2 focus:ring-neutral-700 focus:ring-offset-2 focus:ring-offset-black transition-all duration-200 ease-in-out border border-transparent focus:border-neutral-700 h-10 w-10 rounded-lg p-0'
+              onClick={() => navigate('/auth')}
+              aria-label='Login'
+            >
+              <LogIn className='w-5 h-5' />
+            </Button>
+          )}
         </div>
       )}
       <AnimatePresence>
@@ -735,8 +547,8 @@ function MainContent({ showSidebar, setShowSidebar }) {
         )}
       </AnimatePresence>
       <motion.main
-        className="flex-1 flex flex-col px-0 md:px-10 pt-2 md:pt-10 pb-0 relative h-full rounded-xl"
-        style={bgObj.style}
+        className="flex flex-col min-h-screen w-full px-0 md:px-10 pt-2 md:pt-10 pb-0 relative rounded-xl"
+        style={Object.assign({}, bgObj.style, !isMobile ? { marginLeft: 'calc(18rem + 55px)' } : {})}
       >
         {bgObj.image && (
           <div className='w-full flex justify-center mt-4'>
@@ -745,54 +557,60 @@ function MainContent({ showSidebar, setShowSidebar }) {
         )}
         <header className="flex justify-end items-center mb-10"></header>
 
-        <div className="flex-1 flex flex-col items-center">
+        <div className="flex-1 flex flex-col items-center w-full">
           {!firstMessageSent && !message.trim() && (
-            <div className="w-full max-w-2xl animate-scale-in" style={{ marginTop: '100px' }}>
-              <h2 className="text-3xl font-semibold mb-8 text-left">
-                {user ? `How can I help you, ${user.displayName.split(' ')[0]}?` : 'How can I help you?'}
-              </h2>
+            <div className="w-full flex justify-center items-center animate-scale-in" style={{ marginTop: '100px', minHeight: 320 }}>
+              <div style={{ maxWidth: 430, width: '100%' }}>
+                <h2 className="text-3xl font-semibold mb-8 text-left">
+                  {user ? `How can I help you, ${user.displayName.split(' ')[0]}?` : 'How can I help you?'}
+                </h2>
 
-              <div className="flex flex-wrap gap-2 mb-6">
-                {['Create', 'Explore', 'Code', 'Learn'].map((cat) => (
-                  <LiquidGlassButton
-                    key={cat}
-                    icon={
-                      cat === 'Create' ? <Sparkles className="text-sm" size={16} /> :
-                        cat === 'Explore' ? <Newspaper className="text-sm" size={16} /> :
-                          cat === 'Code' ? <span className="material-icons text-sm">code</span> :
-                            <GraduationCap className="text-sm" size={16} />
+                <div className="flex flex-wrap gap-2 mb-6 justify-start">
+                  {['Create', 'Explore', 'Code', 'Learn'].map((cat) => (
+                    <LiquidGlassButton
+                      key={cat}
+                      icon={
+                        cat === 'Create' ? <Sparkles className="text-sm" size={16} /> :
+                          cat === 'Explore' ? <Newspaper className="text-sm" size={16} /> :
+                            cat === 'Code' ? <span className="material-icons text-sm">code</span> :
+                              <GraduationCap className="text-sm" size={16} />
+                      }
+                      text={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      selected={selectedCategory === cat}
+                    />
+                  ))}
+                </div>
+
+                <div className="w-full flex flex-col items-start" style={{ maxWidth: 430 }}>
+                  <style>{`
+                    .glass-question {
+                      color: #E0E8FF;
+                      background: transparent;
+                      transition: background 0.2s, color 0.2s;
+                      display: inline-block;
+                      width: auto;
+                      max-width: 100%;
                     }
-                    text={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    selected={selectedCategory === cat}
-                  />
-                ))}
-              </div>
-
-              <div className="w-full">
-                <style>{`
-                  .glass-question {
-                    color: #E0E8FF;
-                    background: transparent;
-                    transition: background 0.2s, color 0.2s;
-                  }
-                  .glass-question:hover {
-                    background: rgba(255,255,255,0.07);
-                    color: #E0E8FF;
-                  }
-                `}</style>
-                {(selectedCategory
-                  ? CATEGORY_QUESTIONS[selectedCategory]
-                  : defaultQuestions
-                ).map((q, i) => (
-                  <p
-                    key={i}
-                    className="glass-question p-3 rounded-lg text-sm font-bold cursor-pointer transition-colors text-left break-words whitespace-pre-line sm:whitespace-normal sm:break-normal overflow-x-auto"
-                    onClick={() => handleQuestionClick(q)}
-                  >
-                    {q}
-                  </p>
-                ))}
+                    .glass-question:hover {
+                      background: rgba(255,255,255,0.07);
+                      color: #E0E8FF;
+                    }
+                  `}</style>
+                  {(selectedCategory
+                    ? CATEGORY_QUESTIONS[selectedCategory]
+                    : defaultQuestions
+                  ).map((q, i) => (
+                    <p
+                      key={i}
+                      className="glass-question p-3 rounded-lg text-sm font-bold cursor-pointer transition-colors text-left break-words whitespace-pre-line sm:whitespace-normal sm:break-normal overflow-x-auto"
+                      onClick={() => handleQuestionClick(q)}
+                      style={{ marginBottom: 4, minWidth: 0 }}
+                    >
+                      {q}
+                    </p>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -802,16 +620,16 @@ function MainContent({ showSidebar, setShowSidebar }) {
               className={`flex-1 w-full flex flex-col items-center overflow-y-auto hide-scrollbar`}
               style={
                 isMobile
-                  ? { maxHeight: 'calc(100vh - 120px)', height: 'calc(100vh - 120px)', overflowY: 'auto' }
-                  : { maxHeight: 'calc(100vh - 250px)' }
+                  ? { maxHeight: 'calc(100vh - 100px)', height: 'calc(100vh - 100px)', overflowY: 'auto', width: '100%' }
+                  : { maxHeight: 'calc(100vh - 175px)', width: '100%' }
               }
             >
               <Chat
                 modelFamily={lastUsedModelFamily}
                 messages={selectedBranchId !== 'root' && branches[selectedBranchId] ? branches[selectedBranchId].messages : chatLoading ? [] : chatMessages}
-                onReroll={handleReroll}
+                onReroll={handleRerollWrapper}
                 loading={loading}
-                isThinking={isThinking}
+                isStreaming={loading || firestoreStreamActive}
                 selectedBranchId={selectedBranchId}
                 setSelectedBranchId={setSelectedBranchId}
                 branches={branches}
@@ -822,6 +640,13 @@ function MainContent({ showSidebar, setShowSidebar }) {
                 isTemporaryChat={isTemporaryChat}
                 chatContainerRef={chatContainerRef}
               />
+              {firestoreStreamActive && firestoreStreamInfo.streamId && firestoreStreamInfo.messageId && (
+                <FirestoreStreamListener
+                  streamId={firestoreStreamInfo.streamId}
+                  messageId={firestoreStreamInfo.messageId}
+                  onUpdate={handleFirestoreStreamUpdate}
+                />
+              )}
               {chatLoading && (
                 <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: 'rgba(32,27,37,0.85)' }}>
                   <span className="text-zinc-400 text-lg">Loading chat...</span>
@@ -832,26 +657,120 @@ function MainContent({ showSidebar, setShowSidebar }) {
         </div>
 
         {/* Banner for terms and privacy policy, always above the input */}
-        {!user && !firstMessageSent && (
-          <div className="flex items-center justify-center mx-auto mb-6" style={{ background: '#201B25', color: '#ACA1B7', width: '430px', height: '54px', borderRadius: '12px 12px 0 0', border: '1px solid #2A222E', zIndex: 10, marginBottom: '-1px', padding: 0 }}>
-            <span style={{ color: '#ACA1B7', fontSize: '14px', fontWeight: 500, lineHeight: '1.2' }}>
+        {!user && !firstMessageSent && !modelSelectionOpen && !toolSelectionOpen && (
+          <div
+            className={`flex items-center justify-center mx-auto mb-6 ${styles.liquidGlassCard}`}
+            style={{
+              width: isMobile ? 'calc(100% - 40px)' : '430px',
+              maxWidth: '430px',
+              height: '54px',
+              borderRadius: '12px 12px 0 12px',
+              zIndex: 50,
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              bottom: isMobile ? '154px' : '104px', // 54px (banner) + 50px higher than sticky input
+              padding: '0 10px'
+            }}
+          >
+            <span style={{ color: '#ACA1B7', fontSize: '14px', fontWeight: 500, lineHeight: '1.2', textAlign: 'center' }}>
               Make sure you agree to our <a href="/terms-of-service" style={{ color: '#fff', textDecoration: 'underline' }}>Terms</a> and our <a href="/privacy-policy" style={{ color: '#fff', textDecoration: 'underline' }}>Privacy Policy</a>
             </span>
           </div>
         )}
 
-        <MessageInput
-          message={message}
-          setMessage={setMessage}
-          onFirstMessageSent={() => setFirstMessageSent(true)}
-          onOpenOptions={() => { }}
-          onSubmit={handleSubmit}
-          isLoading={loading}
-          selectedModel={selectedModel}
-          setSelectedModel={setSelectedModel}
-          isTemporaryChat={isTemporaryChat}
-          onStartTemporaryChat={handleToggleTemporaryChat}
-        />
+        {/* Current model display above MessageInput, compact, left-shifted, beige text, underlined, with tooltip, no icon */}
+        {selectedModel && (
+          <div
+            className={`z-30 flex items-center justify-center ${isMobile ? '' : 'fixed'} ${isMobile ? '' : 'bottom-[100px] md:bottom-[85px]'}`}
+            style={
+              isMobile
+                ? {
+                    position: 'fixed',
+                    bottom: 80,
+                    left: 0,
+                    width: '100%',
+                    minHeight: 28,
+                    borderRadius: 8,
+                    padding: '0.15rem 0.7rem',
+                    marginBottom: 0,
+                    justifyContent: 'flex-start',
+                    display: 'flex',
+                    zIndex: 30,
+                  }
+                : {
+                    left: 850, // minimum left value in px
+                    width: 'auto',
+                    minHeight: 28,
+                    borderRadius: 8,
+                    padding: '0.15rem 0.7rem',
+                    pointerEvents: 'none',
+                    position: 'fixed',
+                    bottom: '85px',
+                    zIndex: 30,
+                  }
+            }
+          >
+            <span
+              className='flex items-center gap-2 bg-[#F9B4D0]/30 text-white px-2 py-0.5 rounded text-xs font-bold ml-2'
+              style={{ pointerEvents: 'auto', fontSize: 14, fontWeight: 600, letterSpacing: 0.1 }}
+            >
+              {selectedModel.displayName}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: '0.5rem' }}>
+                {isTemporaryChat && (
+                  <span
+                    onMouseEnter={e => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Temporary chat (messages are not saved)' });
+                    }}
+                    onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
+                    style={{ display: 'flex', alignItems: 'center' }}
+                  >
+                    <Ghost size={17} style={{ color: '#fff', opacity: 0.95 }} />
+                  </span>
+                )}
+                {useWebSearch && (
+                  <span
+                    onMouseEnter={e => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Web search enabled for this chat' });
+                    }}
+                    onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
+                    style={{ display: 'flex', alignItems: 'center' }}
+                  >
+                    <Globe size={17} style={{ color: '#fff', opacity: 0.95 }} />
+                  </span>
+                )}
+              </span>
+            </span>
+            {iconTooltip.visible && iconTooltip.text && createPortal(
+              <Tooltip x={iconTooltip.x} y={iconTooltip.y} text={iconTooltip.text} />,
+              document.body
+            )}
+          </div>
+        )}
+
+        {/* MessageInput always at the bottom, outside the flex-1 content */}
+        <div className="w-full" style={{ position: 'sticky', bottom: 0, zIndex: 40 }}>
+          <MessageInput
+            message={message}
+            setMessage={setMessage}
+            onFirstMessageSent={() => setFirstMessageSent(true)}
+            onOpenOptions={handleModelSelectionOpen}
+            onOpenTools={handleToolSelectionOpen}
+            onSubmit={handleSubmitWrapper}
+            isLoading={loading}
+            selectedModel={selectedModel}
+            setSelectedModel={setSelectedModel}
+            isTemporaryChat={isTemporaryChat}
+            onStartTemporaryChat={handleToggleTemporaryChat}
+            useWebSearch={useWebSearch}
+            setUseWebSearch={setUseWebSearch}
+            messagesLeft={messagesLeft}
+            resetAt={resetAt}
+            user={user}
+          />
+        </div>
       </motion.main>
     </>
   );

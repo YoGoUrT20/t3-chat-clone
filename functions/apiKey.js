@@ -12,6 +12,10 @@ function encrypt(text) {
   return iv.toString('base64') + ':' + encrypted;
 }
 
+function isValidOpenRouterKey(key) {
+  return typeof key === 'string' && key.length === 73 && key.startsWith('sk-')
+}
+
 const saveApiKey = onRequest({ region: 'europe-west1' }, async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -36,6 +40,10 @@ const saveApiKey = onRequest({ region: 'europe-west1' }, async (req, res) => {
   }
   if (!apiKey) {
     res.status(400).send('Missing apiKey');
+    return;
+  }
+  if (!isValidOpenRouterKey(apiKey)) {
+    res.status(400).send('Invalid OpenRouter API key');
     return;
   }
   const db = admin.firestore();

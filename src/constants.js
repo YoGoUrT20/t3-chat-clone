@@ -75,40 +75,28 @@ export const familyIcons = {
 
 export const colorThemes = [
   {
+    name: 'Glass',
+    user: { bg: 'rgba(255,255,255,0.13)', text: '#3bb0ff' },
+    assistant: { bg: 'rgba(255,255,255,0.19)', text: '#a259ff' },
+    themeType: 'dark',
+  },
+  {
     name: 'Classic',
     user: { bg: '#4D1F39', text: '#F4E9EE' },
     assistant: { bg: '#201B25', text: '#BFB3CB' },
     themeType: 'dark',
   },
   {
-    name: 'Ocean',
-    user: { bg: '#1E3A5C', text: '#E0F7FA' },
-    assistant: { bg: '#1565C0', text: '#E3F2FD' },
-    themeType: 'light',
-  },
-  {
-    name: 'Forest',
-    user: { bg: '#2E7D32', text: '#E8F5E9' },
-    assistant: { bg: '#388E3C', text: '#C8E6C9' },
-    themeType: 'light',
-  },
-  {
-    name: 'Sunset',
-    user: { bg: '#FF7043', text: '#FFF3E0' },
-    assistant: { bg: '#FFA726', text: '#FFF8E1' },
-    themeType: 'light',
-  },
-  {
-    name: 'Grape',
-    user: { bg: '#6A1B9A', text: '#F3E5F5' },
-    assistant: { bg: '#8E24AA', text: '#E1BEE7' },
+    name: 'Aurora',
+    user: { bg: '#232b36', text: '#b8ffe3' },
+    assistant: { bg: '#3a4660', text: '#aee9ff' },
     themeType: 'dark',
   },
   {
-    name: 'Glass',
-    user: { bg: 'rgba(255,255,255,0.13)', text: '#3bb0ff' },
-    assistant: { bg: 'rgba(255,255,255,0.19)', text: '#a259ff' },
-    themeType: 'dark',
+    name: 'Peach Dream',
+    user: { bg: '#ffbfae', text: '#3a1c0a' },
+    assistant: { bg: '#ffe5d0', text: '#7a3e1d' },
+    themeType: 'light',
   },
   {
     name: 'Transparent',
@@ -119,12 +107,9 @@ export const colorThemes = [
 ];
 
 export const backgroundOptions = [
-  { name: 'Default', value: 'default', themeType: 'dark' },
-  { name: 'Glowing Blue', value: 'glow-blue', style: { background: 'radial-gradient(circle at 60% 40%, #3bb0ff 0%, #a259ff 100%)', boxShadow: '0 0 80px 10px #3bb0ff88' }, themeType: 'light' },
-  { name: 'Glowing Pink', value: 'glow-pink', style: { background: 'radial-gradient(circle at 40% 60%, #ff70a6 0%, #ff9770 100%)', boxShadow: '0 0 80px 10px #ff70a688' }, themeType: 'light' },
-  { name: 'Glow Under Messages', value: 'glow-under', style: { background: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' }, themeType: 'light' },
   { name: 'Model Glow', value: 'model-glow', style: { background: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' }, themeType: 'light' },
-  { name: 'Model: Gemini', value: 'model-gemini', style: { background: 'radial-gradient(circle at 60% 40%, #9168C0 0%, #1BA1E3 100%)' }, themeType: 'light' },
+  { name: 'Default', value: 'default', themeType: 'dark' },
+  { name: 'Glow Under Messages', value: 'glow-under', style: { background: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' }, themeType: 'light' },
 ];
 
 export const glowOptions = [
@@ -136,12 +121,12 @@ export const glowOptions = [
 
 export const modelFamilyGlowGradients = {
   gemini: 'radial-gradient(circle at 80% 50%, #1BA1E3 0%, #9168C0 100%)',
-  deepseek: 'radial-gradient(circle at 80% 50%, #43e97b 0%, #38f9d7 100%)',
+  deepseek: 'radial-gradient(circle at 80% 50%, #7fd8ff 0%, #b5eaff 100%)',
   chatgpt: 'radial-gradient(circle at 80% 50%, #43e97b 0%, #00c96b 100%)',
-  claude: 'radial-gradient(circle at 80% 50%, #ffe066 0%, #ffb300 100%)',
-  llama: 'radial-gradient(circle at 80% 50%, #a259ff 0%, #3bb0ff 100%)',
+  claude: 'radial-gradient(circle at 80% 50%, #ffb347 0%, #ff7f50 100%)',
+  llama: 'radial-gradient(circle at 80% 50%, #f5e9da 0%, #e7d8c9 100%)',
   grok: 'radial-gradient(circle at 80% 50%, #ff9770 0%, #ff5858 100%)',
-  qwen: 'radial-gradient(circle at 80% 50%, #ff70a6 0%, #ff9770 100%)',
+  qwen: 'radial-gradient(circle at 80% 50%, #b47aff 0%, #7f53ac 100%)',
 }
 
 export const familyBgColors = {
@@ -172,34 +157,38 @@ export const fontOptions = [
 ];
 
 export const previewMessages = [
-  { role: 'user', text: 'This is a user message preview.' },
+  { role: 'user', text: 'What is the capital of france?' },
   { role: 'assistant', text: 'This is an assistant message preview.' },
   { role: 'user', text: 'Another user message, a bit longer to test wrapping and style.' },
   { role: 'assistant', text: 'Another assistant message, with more content to see how it looks.' },
+  { role: 'user', text: 'Can you explain how photosynthesis works?' },
+  { role: 'assistant', text: 'Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water.' },
+  { role: 'user', text: 'List three programming languages.' },
+  { role: 'assistant', text: '1. JavaScript\n2. Python\n3. Rust' },
 ];
 
 export const presets = [
   {
     name: 'Classic Light',
-    font: 'Inter',
-    theme: 'Classic',
-    background: 'default',
+    font: 'Comic Sans MS',
+    theme: 'Glass',
+    background: 'model-glow',
     syntaxTheme: 'github-dark',
     glow: { type: 'glow-blue-purple', intensity: 0.7 },
   },
   {
     name: 'Night Glow',
     font: 'Fira Mono',
-    theme: 'Midnight',
+    theme: 'Transparent',
     background: 'glow-under',
-    syntaxTheme: 'night-owl',
+    syntaxTheme: 'atom-one-dark',
     glow: { type: 'glow-pink-orange', intensity: 1 },
   },
   {
     name: 'Soft Pastel',
     font: 'Georgia',
-    theme: 'Pastel',
-    background: 'glow-under',
+    theme: 'Peach Dream',
+    background: 'model-glow',
     syntaxTheme: 'atom-one-light',
     glow: { type: 'glow-green-teal', intensity: 0.5 },
   },

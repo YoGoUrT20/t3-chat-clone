@@ -28,20 +28,20 @@ export const models = [
     freeAccess: false,
     openRouterName: 'google/gemini-2.5-pro-exp-03-25',
   },
-  {
-    name: 'gpt-imagegen',
-    family: 'chatgpt',
-    displayName: 'GPT ImageGen',
-    displayNameV2: 'ImageGen',
-    capabilities: ['vision', 'imagegen'],
-    description: 'GPT model for image generation and vision.',
-    reasoning: false,
-    experimental: false,
-    additionalInfo: '',
-    apiKeyRequired: false,
-    freeAccess: false,
-    openRouterName: 'openai/gpt-imagegen',
-  },
+  // {
+  //   name: 'gpt-imagegen',
+  //   family: 'chatgpt',
+  //   displayName: 'GPT ImageGen',
+  //   displayNameV2: 'ImageGen',
+  //   capabilities: ['vision', 'imagegen'],
+  //   description: 'GPT model for image generation and vision.',
+  //   reasoning: false,
+  //   experimental: false,
+  //   additionalInfo: '',
+  //   apiKeyRequired: false,
+  //   freeAccess: false,
+  //   openRouterName: 'openai/gpt-imagegen',
+
   {
     name: 'o4-mini',
     family: 'chatgpt',
@@ -96,7 +96,7 @@ export const models = [
     additionalInfo: 'deepseek',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'deepseek/deepseek-r1:free',
+    openRouterName: 'deepseek/deepseek-r1', // should be free
   },
   {
     name: 'gemini-2.0-flash',
@@ -320,7 +320,7 @@ export const models = [
     additionalInfo: 'llama distilled',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'shisa-ai/shisa-v2-llama3.3-70b:free',
+    openRouterName: 'shisa-ai/shisa-v2-llama3.3-70b', // should be free
   },
   {
     name: 'llama-4-scout',
@@ -334,7 +334,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'meta-llama/llama-4-scout:free',
+    openRouterName: 'meta-llama/llama-4-scout', // should be free
   },
   {
     name: 'llama-4-maverick',
@@ -348,7 +348,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'meta-llama/llama-4-maverick:free',
+    openRouterName: 'meta-llama/llama-4-maverick', // should be free
   },
   {
     name: 'deepseek-v3-0324',
@@ -362,7 +362,7 @@ export const models = [
     additionalInfo: 'deepseek',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'deepseek/deepseek-chat-v3-0324:free',
+    openRouterName: 'deepseek/deepseek-chat-v3-0324', // should be free
   },
   {
     name: 'deepseek-r1-0528-thinking',
@@ -376,7 +376,7 @@ export const models = [
     additionalInfo: 'deepseek',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'deepseek/deepseek-r1-zero:free',
+    openRouterName: 'deepseek/deepseek-r1-zero', // should be free
   },
   {
     name: 'deepseek-r1-qwen-distilled',
@@ -390,7 +390,7 @@ export const models = [
     additionalInfo: 'qwen distilled',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'deepseek/deepseek-r1-0528-qwen3-8b:free',
+    openRouterName: 'deepseek/deepseek-r1-0528-qwen3-8b', // should be free
   },
   {
     name: 'grok-3',
@@ -432,7 +432,7 @@ export const models = [
     additionalInfo: '',
     apiKeyRequired: false,
     freeAccess: true,
-    openRouterName: 'deepseek/deepseek-r1-distill-qwen-32b:free',
+    openRouterName: 'deepseek/deepseek-r1-distill-qwen-32b', // should be free
   },
   {
     name: 'qwen-2.5-32b-vision',

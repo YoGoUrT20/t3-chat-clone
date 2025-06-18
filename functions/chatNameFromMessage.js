@@ -62,7 +62,7 @@ const chatNameFromMessage = onRequest({ region: 'europe-west1' }, async (req, re
       { role: 'user', content: message }
     ];
     const completion = await openai.chat.completions.create({
-      model: 'deepseek/deepseek-chat-v3-0324:free',
+      model: 'deepseek/deepseek-chat-v3-0324',
       messages: prompt,
       max_tokens: 16,
       temperature: 0.7,

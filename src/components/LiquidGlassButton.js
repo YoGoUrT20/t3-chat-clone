@@ -1,9 +1,12 @@
 import React from 'react';
 
-function LiquidGlassButton({ icon, text, onClick, selected, variant = 'pill', style = {} }) {
+const LiquidGlassButton = React.forwardRef((props, ref) => {
+  const { icon, text, onClick, selected, variant = 'pill', style = {} } = props;
   const isRect = variant === 'rect';
   return (
     <button
+      ref={ref}
+      type='button'
       className={`liquid-glass-btn relative overflow-hidden group flex items-center justify-center space-x-1 text-sm font-bold ${isRect ? 'rounded-lg' : 'rounded-full'} ${selected ? 'selected' : ''}`}
       style={{ height: isRect ? '40px' : '36px', width: isRect ? 'auto' : '97px', minWidth: isRect ? '110px' : undefined, padding: isRect ? '0 18px' : undefined, color: selected ? '#23232a' : '#E0E8FF', background: selected ? '#F5FBFF' : undefined, ...style }}
       onClick={onClick}
@@ -71,6 +74,6 @@ function LiquidGlassButton({ icon, text, onClick, selected, variant = 'pill', st
       `}</style>
     </button>
   );
-}
+});
 
 export default LiquidGlassButton; 

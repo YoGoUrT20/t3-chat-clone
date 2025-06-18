@@ -5,7 +5,7 @@ import { useAuth } from '../AuthContext'
 import LiquidGlassButton from './LiquidGlassButton'
 import toast from 'react-hot-toast'
 import SettingsTabs from './ui/SettingsTabs'
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore'
+import { getFirestore, doc, getDoc, updateDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore'
 import ProfileSidebar from './ProfileSidebar'
 import Iso6391 from 'iso-639-1'
 import SettingsProfileTab from './SettingsProfileTab'
@@ -17,7 +17,7 @@ import SettingsSubscriptionTab from './SettingsSubscriptionTab'
 import { useIsMobile } from '../hooks/use-mobile'
 import styles from './ModelSelection.module.css'
 
-const tabs = ['My Profile', 'Customize', 'Subscription', 'Api keys', 'Help', 'History']
+const tabs = ['My Profile', 'Customize', 'Subscription', 'Api keys', 'History']
 
 export default function SettingsSubscriptionPage() {
   const { user, signOutUser, loading } = useAuth()
@@ -66,6 +66,15 @@ export default function SettingsSubscriptionPage() {
   const [banner, setBanner] = useState(null)
   const [bannerVisible, setBannerVisible] = useState(false)
 
+  useEffect(() => {
+    if (location.state?.selectedTab) {
+      const tabIndex = tabs.indexOf(location.state.selectedTab)
+      if (tabIndex !== -1) {
+        setActiveIndex(tabIndex)
+      }
+    }
+  }, [location.state])
+
   const handleSaveApiKey = async (key) => {
     setApiKeyLoading(true)
     try {
@@ -106,8 +115,18 @@ export default function SettingsSubscriptionPage() {
       setUseOwnKey={setUseOwnKey}
       loading={apiKeyLoading}
     />,
-    <div className='p-6'>Help content</div>,
-    null,
+    <SettingsHistoryTab 
+      exportFormat={exportFormat}
+      setExportFormat={setExportFormat}
+      filterConversationId={filterConversationId}
+      setFilterConversationId={setFilterConversationId}
+      filterStartDate={filterStartDate}
+      setFilterStartDate={setFilterStartDate}
+      filterEndDate={filterEndDate}
+      setFilterEndDate={setFilterEndDate}
+      conversations={conversations}
+      loadingConvos={loadingConvos}
+    />
   ]
 
   useEffect(() => {
@@ -177,7 +196,7 @@ export default function SettingsSubscriptionPage() {
     }
     fetchQuota()
     return () => { unsub = true }
-  }, [user])
+  }, [user, location.key])
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000)
@@ -193,17 +212,17 @@ export default function SettingsSubscriptionPage() {
       setMessagesLeft(20)
       setResetAt(newResetAt)
       localStorage.setItem('user_quota', JSON.stringify({ resetAt: newResetAt }))
-      updateDoc(userRef, { messagesLeft: 20, resetAt: newResetAt })
+      const updateObj = { messagesLeft: 20, resetAt: newResetAt }
+      if (user.status === 'premium') {
+        updateObj.premiumTokens = 50
+      }
+      updateDoc(userRef, updateObj)
     }
   }, [user, resetAt, now])
 
   useEffect(() => {
     if (user && user.preferredLanguage) {
-      setPreferredLanguage(
-        Iso6391.getAllCodes().find(
-          code => Iso6391.getName(code) === user.preferredLanguage
-        ) || ''
-      )
+      setPreferredLanguage(user.preferredLanguage || '')
     }
   }, [user])
 
@@ -218,16 +237,15 @@ export default function SettingsSubscriptionPage() {
     async function fetchConvos() {
       setLoadingConvos(true)
       let convos = []
-      const cached = JSON.parse(localStorage.getItem('conversations') || '{}')
       if (user) {
         const db = getFirestore()
-        const qSnap = await getDoc(doc(db, 'users', user.uid))
-        if (qSnap.exists()) {
-          // Optionally fetch from Firestore if needed
-        }
-        convos = Object.values(cached).filter(c => c.userId === user.uid)
-      } else {
-        convos = Object.values(cached)
+        const q = query(
+          collection(db, 'conversations'),
+          where('userId', '==', user.uid),
+          orderBy('lastUsed', 'desc')
+        )
+        const snap = await getDocs(q)
+        convos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       }
       setConversations(convos)
       setLoadingConvos(false)
@@ -302,19 +320,6 @@ export default function SettingsSubscriptionPage() {
   let statusIcon = null
   if (status === 'saved') statusIcon = <Check size={16} className='text-green-500' />
   else if (status === 'saving') statusIcon = <Loader size={16} className='animate-spin text-blue-500' />
-
-  tabContents[6] = <SettingsHistoryTab 
-    exportFormat={exportFormat}
-    setExportFormat={setExportFormat}
-    filterConversationId={filterConversationId}
-    setFilterConversationId={setFilterConversationId}
-    filterStartDate={filterStartDate}
-    setFilterStartDate={setFilterStartDate}
-    filterEndDate={filterEndDate}
-    setFilterEndDate={setFilterEndDate}
-    conversations={conversations}
-    loadingConvos={loadingConvos}
-  />
 
   return (
     <>

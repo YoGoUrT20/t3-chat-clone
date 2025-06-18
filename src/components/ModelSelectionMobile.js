@@ -22,7 +22,7 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
       return a.displayName.localeCompare(b.displayName);
     });
   };
-  const useOwnKey = (user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true';
+  const useOwnKey = !!user && ((user && user.useOwnKey) || localStorage.getItem('use_own_api_key') === 'true');
   const sortedItems = sortByCustomFamilyOrder(items)
     .map(item => {
       let hasApiKey = false;
@@ -75,6 +75,15 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
                 )}
                 style={{ minHeight: 64 }}
                 onClick={() => !isBlocked && onModelSelect && onModelSelect(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!isBlocked && onModelSelect) {
+                      onModelSelect(item);
+                    }
+                  }
+                }}
+                tabIndex={!isBlocked ? 0 : -1}
               >
                 {item.family && familyIcons[item.family] && (
                   <img
