@@ -21,6 +21,7 @@ function getShortcutsFromStorageOrUser(user) {
     { keys: ['alt', 'T'], description: 'Temp chat' },
     { keys: ['alt', 'N'], description: 'New Chat' },
     { keys: ['alt', 'S'], description: 'Web Search' },
+    { keys: [modKey, 'F'], description: 'Search conversations' },
   ]
 }
 

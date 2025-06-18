@@ -64,6 +64,20 @@ export default function EditShortcutsDialog({ open, onOpenChange, shortcuts, onS
           setRecordingIdx(null)
           return
         }
+        // Check for duplicate shortcut
+        const isDuplicate = localShortcuts.some((sc, i) => {
+          if (i === recordingIdx) return false
+          if (!sc.keys || sc.keys.length !== 2) return false
+          return (
+            sc.keys[0].toLowerCase() === newShortcut[0].toLowerCase() &&
+            sc.keys[1].toLowerCase() === newShortcut[1].toLowerCase()
+          )
+        })
+        if (isDuplicate) {
+          toast.error('This shortcut is already used for another action')
+          setRecordingIdx(null)
+          return
+        }
         setLocalShortcuts(prev =>
           prev.map((sc, i) => (i === recordingIdx ? { ...sc, keys: newShortcut } : sc))
         )

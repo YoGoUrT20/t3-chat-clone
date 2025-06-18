@@ -28,13 +28,23 @@ function arraysEqual(a, b) {
 function getUserShortcuts() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   let shortcuts = user.shortcuts
+  const modKey = getModifierKey();
+  const defaultShortcuts = [
+    { keys: [modKey, 'M'], description: 'Select a model' },
+    { keys: ['alt', 'T'], description: 'Temp chat' },
+    { keys: ['alt', 'N'], description: 'New Chat' },
+    { keys: ['alt', 'S'], description: 'Web Search' },
+    { keys: [modKey, 'F'], description: 'Search conversations' },
+  ];
   if (!Array.isArray(shortcuts)) {
-    const modKey = getModifierKey();
-    shortcuts = [
-      { keys: [modKey, 'M'], description: 'Select a model' },
-      { keys: ['alt', 'T'], description: 'Temp chat' },
-      { keys: ['alt', 'N'], description: 'New Chat' },
-    ]
+    shortcuts = defaultShortcuts;
+  } else {
+    // Ensure all default shortcuts are present (by description)
+    for (const def of defaultShortcuts) {
+      if (!shortcuts.some(s => s.description === def.description)) {
+        shortcuts.push(def);
+      }
+    }
   }
   return shortcuts
 }
