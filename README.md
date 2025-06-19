@@ -2,7 +2,7 @@
 
 > Demo hosted at [chat.minefloat.com](https://chat.minefloat.com)
 
-This project was created as part of the T3 Chat Cloneathon - an open source competition to build the best T3 Chat clone. The competition ran until June 18, 2025.
+This project was created as part of the [T3 Chat Cloneathon](https://cloneathon.t3.chat/)- an open source competition to build the best T3 Chat clone. The competition ran until June 18, 2025.
 
 ### Competition Overview
 - **Challenge**: Build a cool AI chat app with support for multiple LLMs, authentication, and chat synchronization
