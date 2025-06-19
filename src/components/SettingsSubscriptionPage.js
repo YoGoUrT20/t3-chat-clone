@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { ArrowLeft, Check, Loader } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
@@ -20,7 +20,7 @@ import styles from './ModelSelection.module.css'
 const tabs = ['My Profile', 'Customize', 'Subscription', 'Api keys', 'History']
 
 export default function SettingsSubscriptionPage() {
-  const { user, signOutUser, loading } = useAuth()
+  const { user, signOutUser, loading, refreshUserFromFirestore } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [activeIndex, setActiveIndex] = useState(0)
@@ -58,7 +58,7 @@ export default function SettingsSubscriptionPage() {
   const contentRef = useRef(null)
   const [containerHeight, setContainerHeight] = useState('auto')
   const [defaultModel, setDefaultModel] = useState(() => localStorage.getItem('default_model') || models[0].name)
-  const [selectedFont, setSelectedFont] = useState(() => localStorage.getItem('chat_font') || 'Inter')
+  const [selectedFont, setSelectedFont] = useState(() => localStorage.getItem('chat_font') || 'Roboto')
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('openrouter_api_key') || '')
   const [useOwnKey, setUseOwnKey] = useState(() => localStorage.getItem('use_own_api_key') === 'true')
   const [apiKeyLoading, setApiKeyLoading] = useState(false)
@@ -287,12 +287,13 @@ export default function SettingsSubscriptionPage() {
     const params = new URLSearchParams(location.search)
     if (params.get('success') === '1') {
       setBanner({ type: 'success', text: 'Subscription successful!' })
+      refreshUserFromFirestore()
     } else if (params.get('canceled') === '1') {
       setBanner({ type: 'error', text: 'Process was canceled.' })
     } else {
       setBanner(null)
     }
-  }, [location.search])
+  }, [location.search, refreshUserFromFirestore])
 
   useEffect(() => {
     if (banner) {

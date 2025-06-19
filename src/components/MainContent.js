@@ -50,6 +50,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
   const [isTemporaryChat, setIsTemporaryChat] = useState(!user);
   const loadedChatIdRef = useRef(null);
   const [useWebSearch, setUseWebSearch] = useState(false);
+  const [useDeepResearch, setUseDeepResearch] = useState(false);
   const isMobile = useIsMobile();
   const [initialRenderComplete, setInitialRenderComplete] = useState(false);
   const [showMobileHistory, setShowMobileHistory] = useState(false);
@@ -125,11 +126,25 @@ function MainContent({ showSidebar, setShowSidebar }) {
         loadedMessages = (data.messages || []).map((msg, i) => {
           let thinking = '';
           let mainContent = msg.content || msg.text || '';
+          let thinkingType;
+          // Handle <final-report> tag
           if ((msg.role === 'assistant' || msg.sender === 'llm') && typeof mainContent === 'string') {
-            const thinkingMatch = mainContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
-            if (thinkingMatch) {
-              thinking = thinkingMatch[1];
-              mainContent = mainContent.replace(/<thinking>[\s\S]*?<\/thinking>/, '');
+            const finalReportMatch = mainContent.match(/<final-report>([\s\S]*?)<\/final-report>/);
+            if (finalReportMatch) {
+              // Everything outside <final-report> goes to thinking
+              const before = mainContent.split('<final-report>')[0];
+              const after = mainContent.split('</final-report>')[1] || '';
+              thinking = (before + after).trim();
+              mainContent = finalReportMatch[1].trim();
+              thinkingType = 'final-report';
+            } else {
+              // Fallback to <thinking>
+              const thinkingMatch = mainContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
+              if (thinkingMatch) {
+                thinking = thinkingMatch[1];
+                mainContent = mainContent.replace(/<thinking>[\s\S]*?<\/thinking>/, '');
+                thinkingType = 'thinking';
+              }
             }
           }
           const mapped = {
@@ -137,7 +152,8 @@ function MainContent({ showSidebar, setShowSidebar }) {
             sender: msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'llm' : msg.role),
             text: mainContent,
             thinking,
-            model: msg.model || data.model || null
+            model: msg.model || data.model || null,
+            thinkingType
           };
           if (msg.images) mapped.images = msg.images;
           if (msg.id) mapped.messageId = msg.id;
@@ -391,6 +407,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
       FUNCTIONS_URL: process.env.REACT_APP_FUNCTIONS_URL,
       abortControllerRef,
       useWebSearch,
+      useDeepResearch,
     });
     // Refetch quota after sending
     setTimeout(async () => {
@@ -577,7 +594,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
           {!firstMessageSent && !message.trim() && (
             <div className="w-full flex justify-center items-center animate-scale-in" style={{ marginTop: '100px', minHeight: 320 }}>
               <div style={{ maxWidth: 430, width: '100%' }}>
-                <h2 className="text-3xl font-semibold mb-8 text-left">
+                <h2 className="text-3xl font-semibold mb-8 text-left text-white">
                   {user ? `How can I help you, ${user.displayName.split(' ')[0]}?` : 'How can I help you?'}
                 </h2>
 
@@ -651,6 +668,7 @@ function MainContent({ showSidebar, setShowSidebar }) {
                 onBranchesChange={handleBranchesChange}
                 isTemporaryChat={isTemporaryChat}
                 chatContainerRef={chatContainerRef}
+                useDeepResearch={useDeepResearch}
               />
               {firestoreStreamActive && firestoreStreamInfo.streamId && firestoreStreamInfo.messageId && (
                 <FirestoreStreamListener
@@ -708,6 +726,8 @@ function MainContent({ showSidebar, setShowSidebar }) {
               onStartTemporaryChat={handleToggleTemporaryChat}
               useWebSearch={useWebSearch}
               setUseWebSearch={setUseWebSearch}
+              useDeepResearch={useDeepResearch}
+              setUseDeepResearch={setUseDeepResearch}
               messagesLeft={messagesLeft}
               resetAt={resetAt}
               user={user}

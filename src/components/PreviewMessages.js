@@ -21,9 +21,8 @@ export default function PreviewMessages({
         const isUser = msg.role === 'user'
         const msgBg = isUser ? themeObj.user.bg : themeObj.assistant.bg
         let msgText = isUser ? themeObj.user.text : themeObj.assistant.text
-        const themeType = isUser ? themeObj.themeType : themeObj.themeType
-        if (themeType === 'dark') msgText = '#E0E8FF'
-        if (themeType === 'light') msgText = '#2A222E'
+        const themeType = 'dark'
+        msgText = '#E0E8FF'
         const showCode = i === 1
         let glowGradient = ''
         let modelKey = msg.model || msg.modelName || msg.model_name || msg.openRouterName || ''

@@ -1,7 +1,25 @@
 # T3 Chat Clone - Quiver 🏹
 
 > Demo hosted at [chat.minefloat.com](https://chat.minefloat.com)
-## Features
+
+This project was created as part of the T3 Chat Cloneathon - an open source competition to build the best T3 Chat clone. The competition ran until June 18, 2025.
+
+### Competition Overview
+- **Challenge**: Build a cool AI chat app with support for multiple LLMs, authentication, and chat synchronization
+- **Requirements**: Web-based, open source, and easily testable
+- **Bonus Features**: 
+  - Attachment Support
+  - Image Generation
+  - Syntax Highlighting
+  - Resumable Streams
+  - Chat Branching
+  - Chat Sharing
+  - Web Search
+  - Bring Your Own Key
+  - Mobile Support
+  - And more creative features!
+
+## Quiver Features
 
 - Resumable Streams
 - Temporary Chats
@@ -19,6 +37,7 @@
 - Temporary chats
 - Multiple tabs Synchronization
 - Search shortcut
+- Installable app (install button from chrome)
 - & more
 ## Getting Started
 
@@ -86,65 +105,4 @@ This project requires configuration of environment variables for both developmen
    - `firebase deploy --only functions`
 
 5. **Start the development server:**
-   `npm run dev`
-
-6. **Open** http://localhost:3000 in your browser.
-
----
-
-## Production Setup
-
-To set up for production, first complete the Development Setup steps above. Then:
-
-
-1. **Ensure both `.env` and `functions/.env` are configured with production values.**
-   - Use your production Firebase and Stripe credentials.
-   - Update `HOST` in `functions/.env` to your production domain.
-
-2. **Build the project for production:**
-   `npm run build`
-
-3. **Deploy your app and updated functions using firebase**
-   - `firebase deploy --only functions`
-   - `firebase deploy --only hosting`
-
----
-
-## Environment Variables Reference
-
-### Root `.env`
-- `REACT_APP_FIREBASE_API_KEY`
-- `REACT_APP_FIREBASE_AUTH_DOMAIN`
-- `REACT_APP_FIREBASE_PROJECT_ID`
-- `REACT_APP_FIREBASE_STORAGE_BUCKET`
-- `REACT_APP_FIREBASE_MESSAGING_SENDER_ID`
-- `REACT_APP_FIREBASE_APP_ID`
-- `REACT_APP_FIREBASE_MEASUREMENT_ID`
-- `REACT_APP_FUNCTIONS_URL`
-
-### `functions/.env`
-- `STRIPE_SECRET_KEY` (Stripe secret key)
-- `STRIPE_WEBHOOK_SECRET` (Stripe webhook secret)
-- `HOST` (Frontend host URL)
-- `API_KEY_SECRET` (Secret for encrypting API keys)
-- `OPENROUTER_REFERER` (OpenRouter referer)
-- `OPENROUTER_TITLE` (OpenRouter title)
-- `OPEN_ROUTER_API_KEY` (OpenRouter API key)
-- All Firebase variables as above (must match root `.env`)
-
-You can find your Firebase values in your Firebase project settings. Stripe and OpenRouter values are available in their respective dashboards.
-
----
-
-## Folder Structure
-
-- `src/` - Main source code
-  - `components/` - UI components (SidePanel, MainContent, AuthPage, etc.)
-  - `firebase.js` - Firebase initialization
-  - `AuthContext.js` - Authentication context/provider
-  - `App.js` - Main app entry
-- `public/` - Static assets
-
-## License
-
-See LICENSE file for details.
+   `

@@ -114,14 +114,14 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
         <div className={`flex flex-col ${isMobile ? 'gap-4' : 'md:flex-row gap-6 md:gap-8 w-full'}`}>
           <div className={`flex-1 flex flex-col ${isMobile ? 'gap-4' : 'gap-5 md:gap-6'}`}>
             <div>
-              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-[#0e0e10] dark:text-white`}>Presets</div>
-              <div className={`flex flex-row gap-2 ${isMobile ? 'mb-2 overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap mb-3 md:mb-4 overflow-x-auto scrollbar-thin scrollbar-thumb-[#ececec] dark:scrollbar-thumb-[#232228]'}`}>
+              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-white`}>Presets</div>
+              <div className={`flex flex-row gap-2 ${isMobile ? 'mb-2 overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap mb-3 md:mb-4 overflow-x-auto scrollbar-thin scrollbar-thumb-[#232228]'}`}>
                 {presets.map(preset => (
                   <button
                     key={preset.name}
                     type='button'
                     onClick={() => handlePreset(preset)}
-                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} border-[#ececec] dark:border-[#232228] bg-transparent text-[#0e0e10] dark:text-white hover:border-[#DC749E] hover:text-[#DC749E] flex-shrink-0`}
+                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} border-[#232228] bg-transparent text-white hover:border-[#DC749E] hover:text-[#DC749E] flex-shrink-0`}
                   >
                     {preset.name}
                   </button>
@@ -129,14 +129,14 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
               </div>
             </div>
             <div>
-              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-[#0e0e10] dark:text-white`}>Select chat font</div>
+              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-white`}>Select chat font</div>
               <div className={`flex flex-col ${isMobile ? 'gap-2' : 'gap-2 md:gap-3'}`}>
                 {fontOptions.map(opt => (
                   <button
                     key={opt.name}
                     type='button'
                     onClick={() => handleFontChange(opt.name)}
-                    className={`px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${current === opt.name ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#ececec] dark:border-[#232228] bg-transparent text-[#0e0e10] dark:text-white'}`}
+                    className={`px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${current === opt.name ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#232228] bg-transparent text-white'}`}
                     style={opt.style}
                   >
                     {opt.name}
@@ -145,14 +145,14 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
               </div>
             </div>
             <div>
-              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-[#0e0e10] dark:text-white`}>Select message color theme</div>
-              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap overflow-x-auto scrollbar-thin scrollbar-thumb-[#ececec] dark:scrollbar-thumb-[#232228]'}`}>
+              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-white`}>Select message color theme</div>
+              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap overflow-x-auto scrollbar-thin scrollbar-thumb-[#232228]'}`}>
                 {colorThemes.map(opt => (
                   <button
                     key={opt.name}
                     type='button'
                     onClick={() => handleThemeChange(opt.name)}
-                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${theme === opt.name ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#ececec] dark:border-[#232228] bg-transparent text-[#0e0e10] dark:text-white'}`}
+                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${theme === opt.name ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#232228] bg-transparent text-white'}`}
                   >
                     {opt.name}
                   </button>
@@ -160,14 +160,14 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
               </div>
             </div>
             <div>
-              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-[#0e0e10] dark:text-white`}>Select chat background</div>
-              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap overflow-x-auto scrollbar-thin scrollbar-thumb-[#ececec] dark:scrollbar-thumb-[#232228]'}`}>
+              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-white`}>Select chat background</div>
+              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap overflow-x-auto scrollbar-thin scrollbar-thumb-[#232228]'}`}>
                 {backgroundOptions.map(opt => (
                   <button
                     key={opt.value}
                     type='button'
                     onClick={() => handleBackgroundChange(opt.value)}
-                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${background === opt.value ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#ececec] dark:border-[#232228] bg-transparent text-[#0e0e10] dark:text-white'}`}
+                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${background === opt.value ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#232228] bg-transparent text-white'}`}
                     style={opt.style}
                   >
                     {opt.name}
@@ -176,14 +176,14 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
               </div>
             </div>
             <div>
-              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-[#0e0e10] dark:text-white`}>Select syntax highlighting theme</div>
-              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap overflow-x-auto scrollbar-thin scrollbar-thumb-[#ececec] dark:scrollbar-thumb-[#232228]'}`}>
+              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-white`}>Select syntax highlighting theme</div>
+              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap overflow-x-auto scrollbar-thin scrollbar-thumb-[#232228]'}`}>
                 {syntaxThemes.map(opt => (
                   <button
                     key={opt.value}
                     type='button'
                     onClick={() => handleSyntaxThemeChange(opt.value)}
-                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${syntaxTheme === opt.value ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#ececec] dark:border-[#232228] bg-transparent text-[#0e0e10] dark:text-white'}`}
+                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${syntaxTheme === opt.value ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#232228] bg-transparent text-white'}`}
                   >
                     {opt.name}
                   </button>
@@ -191,14 +191,14 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
               </div>
             </div>
             <div>
-              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-[#0e0e10] dark:text-white`}>Glow Options (only for GUM bg)</div>
-              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap mb-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[#ececec] dark:scrollbar-thumb-[#232228]'}`}>
+              <div className={`mb-2 ${isMobile ? 'text-base' : 'text-base md:text-lg'} font-semibold text-white`}>Glow Options (only for GUM bg)</div>
+              <div className={`flex flex-row gap-2 ${isMobile ? 'overflow-x-auto' : 'md:gap-4 flex-nowrap md:flex-wrap mb-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[#232228]'}`}>
                 {glowOptions.map(opt => (
                   <button
                     key={opt.value}
                     type='button'
                     onClick={() => handleGlowType(opt.value)}
-                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${glowType === opt.value ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#ececec] dark:border-[#232228] bg-transparent text-[#0e0e10] dark:text-white'}`}
+                    className={`min-w-[110px] px-3 py-2 ${isMobile ? '' : 'md:px-4 md:py-2'} rounded border transition-all text-sm ${isMobile ? '' : 'md:text-base'} ${glowType === opt.value ? 'border-[#DC749E] bg-[#F9B4D0]/10 text-[#DC749E] font-bold' : 'border-[#232228] bg-transparent text-white'}`}
                     style={{ background: glowType === opt.value ? opt.gradient : undefined, opacity: background !== 'glow-under' ? 0.5 : 1, pointerEvents: background !== 'glow-under' ? 'none' : 'auto' }}
                     disabled={background !== 'glow-under'}
                   >
@@ -207,7 +207,7 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
                 ))}
               </div>
               <div className={`flex flex-col ${isMobile ? 'gap-2' : 'xs:flex-row items-start xs:items-center gap-2 xs:gap-3'}`}>
-                <span className={`${isMobile ? 'text-sm' : 'text-sm md:text-base'} text-[#0e0e10] dark:text-white`}>Glow Intensity</span>
+                <span className={`${isMobile ? 'text-sm' : 'text-sm md:text-base'} text-white`}>Glow Intensity</span>
                 {background !== 'glow-under' ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -239,7 +239,7 @@ export default function SettingsCustomizeTab({ selectedFont, setSelectedFont }) 
             </div>
           </div>
           <div className='flex-1 flex flex-col gap-3 md:gap-4 mt-4 md:mt-0'>
-            <div className='mb-2 text-base md:text-lg font-semibold text-[#0e0e10] dark:text-white'>Preview</div>
+            <div className='mb-2 text-base md:text-lg font-semibold text-white'>Preview</div>
             <PreviewMessages
               previewMessagesWithModels={previewMessagesWithModels}
               bgObj={bgObj}

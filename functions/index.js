@@ -104,6 +104,102 @@ exports.llmStreamResumable = onRequest({ region: 'europe-west1' }, async (req, r
     await setPremiumTokensIfNeeded(userRef, userData);
   }
   
+  // --- DEEP RESEARCH HANDLING ---
+  if (req.body.useDeepResearch === true) {
+    if (!userData || userData.status !== 'premium' || !userData.premiumTokens || userData.premiumTokens < 10) {
+      res.status(403).json({ error: 'premium_required', message: 'Deep Research requires premium status and at least 10 premium tokens.' });
+      return;
+    }
+    await userRef.set({ premiumTokens: admin.firestore.FieldValue.increment(-10) }, { merge: true });
+    // Prepare Firestore stream doc
+    let streamId = req.body.chat_id;
+    if (!streamId) {
+      streamId = `temp_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    }
+    const assistantMessageId = uuidv4();
+    const streamRef = db.collection('streams').doc(streamId);
+    await streamRef.set({
+      message: '',
+      tokens: [],
+      chatid: streamId,
+      messageid: assistantMessageId,
+      model: 'deep-research',
+      finished: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    try {
+      const userPrompt = (() => {
+        // Try to extract the user prompt from the messages array
+        if (Array.isArray(req.body.messages)) {
+          const userMsg = req.body.messages.find(m => m.role === 'user');
+          if (userMsg && typeof userMsg.content === 'string') return userMsg.content;
+          if (userMsg && typeof userMsg.content === 'object' && Array.isArray(userMsg.content)) {
+            // If content is array (for vision), find the text part
+            const textPart = userMsg.content.find(c => c.type === 'text');
+            if (textPart && textPart.text) return textPart.text;
+          }
+        }
+        return '';
+      })();
+      const encodedPrompt = encodeURIComponent(userPrompt);
+      // Build the Deep Research API URL
+      const baseUrl = 'https://deep-research-nine-indol.vercel.app/api/sse/live';
+      // Use the default params, but replace query
+      const url = `${baseUrl}?query=${encodedPrompt}&provider=google&thinkingModel=gemini-2.0-flash-thinking-exp&taskModel=gemini-2.0-flash-exp&searchProvider=model&language=en-US&maxResult=2`;
+      const fetch = (await import('node-fetch')).default;
+      const response = await fetch(url, { method: 'GET' });
+      if (!response.ok || !response.body) {
+        await streamRef.update({ finished: true });
+        res.status(500).send('Deep Research API error');
+        return;
+      }
+      let mainContent = '';
+      for await (const chunk of response.body) {
+        const text = chunk.toString();
+        mainContent += text;
+        const dataChunk = { content: text };
+        await streamRef.update({
+          message: mainContent,
+          tokens: admin.firestore.FieldValue.arrayUnion(dataChunk)
+        });
+        res.write(`data: ${JSON.stringify(dataChunk)}\n\n`);
+      }
+      await streamRef.update({ finished: true });
+      res.end();
+      // Optionally, update conversation with the assistant message as in the normal flow
+      if (req.body.chat_id) {
+        const conversationRef = db.collection('conversations').doc(req.body.chat_id);
+        const assistantMessage = {
+          role: 'assistant',
+          content: mainContent,
+          model: 'deep-research',
+          id: assistantMessageId
+        };
+        const { branchId } = req.body;
+        if (branchId) {
+          const branchUpdate = {};
+          branchUpdate[`branches.${branchId}.messages`] = admin.firestore.FieldValue.arrayUnion(assistantMessage);
+          branchUpdate['lastUsed'] = admin.firestore.FieldValue.serverTimestamp();
+          await conversationRef.update(branchUpdate);
+        } else {
+          await conversationRef.update({
+            messages: admin.firestore.FieldValue.arrayUnion(assistantMessage),
+            lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
+      return;
+    } catch (err) {
+      await streamRef.update({ finished: true });
+      console.error('Deep Research error:', err && err.stack ? err.stack : err);
+      res.status(500).send('Deep Research error');
+      return;
+    }
+  }
+
   let userSystemPrompt = userData?.systemPrompt;
   const preferredLanguage = userData?.preferredLanguage;
   let systemPromptParts = [];

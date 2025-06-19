@@ -45,19 +45,19 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
   return (
     <div className={cn('w-full flex flex-col items-center', className)}>
       {useOwnKey && (
-        <div className={`w-full max-w-md flex items-center gap-2 px-4 py-3 mb-4 rounded-xl border border-[#ececec] dark:border-[#232228] bg-white/70 dark:bg-zinc-900/60 shadow`}
+        <div className={`w-full max-w-md flex items-center gap-2 px-4 py-3 mb-4 rounded-xl border border-[#232228] bg-zinc-900/60 shadow`}
              style={{ color: '#232228', fontWeight: 600, fontSize: '1rem' }}>
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="flex-shrink-0 text-[#DC749E] dark:text-[#F9B4D0]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
-          <span className='flex-1 text-left text-[#232228] dark:text-[#ececec]'>Using your own OpenRouter API key. All models are available.</span>
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="flex-shrink-0 text-[#F9B4D0]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+          <span className='flex-1 text-left text-[#ececec]'>Using your own OpenRouter API key. All models are available.</span>
         </div>
       )}
       <div className='w-full max-w-md px-2 py-4'>
         {(!user || user.status !== 'premium') && (
-        <div className='bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-md flex flex-col items-center justify-between px-4 py-6 mb-4'>
-          <span className='text-xl font-bold text-zinc-900 dark:text-zinc-100'>Subscription</span>
-          <span className='text-base text-zinc-700 dark:text-zinc-300 mt-1'>9$ to access all models</span>
-          <Button className='text-base font-semibold px-6 py-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 mt-3'>Subscribe</Button>
-          <span className='text-xs text-zinc-600 dark:text-zinc-400 mt-2'>9$/month</span>
+        <div className='bg-zinc-900/60 border border-zinc-800 rounded-xl shadow-md flex flex-col items-center justify-between px-4 py-6 mb-4'>
+          <span className='text-xl font-bold text-zinc-100'>Subscription</span>
+          <span className='text-base text-zinc-300 mt-1'>9$ to access all models</span>
+          <Button className='text-base font-semibold px-6 py-2 rounded-lg bg-zinc-100 text-zinc-900 hover:bg-zinc-200 mt-3'>Subscribe</Button>
+          <span className='text-xs text-zinc-400 mt-2'>9$/month</span>
         </div>
         )}
         <div className='flex flex-col gap-2'>
@@ -68,7 +68,7 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
               <div
                 key={item.name}
                 className={cn(
-                  'flex items-center gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900/70 shadow-sm',
+                  'flex items-center gap-3 p-3 rounded-lg border border-zinc-800 bg-zinc-900/70 shadow-sm',
                   isBlocked && 'opacity-60 relative',
                   isSelected && 'border-green-500 ring-2 ring-green-500',
                   !isBlocked && 'cursor-pointer',
@@ -93,7 +93,7 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
                   />
                 )}
                 <div className='flex flex-col flex-1 min-w-0'>
-                  <span className='text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate' style={{ maxWidth: 140 }}>{item.displayNameV2}</span>
+                  <span className='text-sm font-medium text-zinc-100 truncate' style={{ maxWidth: 140 }}>{item.displayNameV2}</span>
                   <div className='flex flex-wrap gap-1 mt-1'>
                     {item.capabilities && item.capabilities.length > 0 ? (
                       item.capabilities.map((cap) => (
@@ -101,7 +101,7 @@ function ModelSelectionMobile({ items = models, className, selectedModel, onMode
                           key={cap}
                           className={cn(
                             'px-1.5 py-0.5 rounded-full text-[10px] font-medium',
-                            capabilityColors[cap] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                            capabilityColors[cap] || 'bg-zinc-800 text-zinc-100'
                           )}
                         >
                           {cap}

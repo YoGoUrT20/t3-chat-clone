@@ -24,6 +24,57 @@ const hastToText = (node) => {
   return '';
 };
 
+// Utility to clean special tags from message content
+function cleanSpecialTags(text, useDeepResearch) {
+  if (typeof text !== 'string') return text;
+  if (useDeepResearch) {
+    const finalReportIndex = text.indexOf('<final-report>');
+    if (finalReportIndex !== -1) {
+      text = text.substring(finalReportIndex);
+    } else {
+      // If no final report, we are still in reasoning phase, so main content should be empty
+      return '';
+    }
+  }
+  return text
+    .replace(/<report-plan>[\s\S]*?<\/report-plan>/g, '')
+    .replace(/<final-report>[\s\S]*?<\/final-report>/g, '')
+    .replace(/<search-task>[\s\S]*?<\/search-task>/g, '')
+    .replace(/<final-report>/g, '')
+    .replace(/<\/final-report>/g, '')
+    .replace(/<search-task>/g, '\n---\n')
+    .replace(/<\/search-task>/g, '\n---\n');
+}
+
+// Extracts all content within <report-plan> and <search-task> tags, but not inside <final-report>
+function extractReasoningContent(text, useDeepResearch) {
+  if (typeof text !== 'string') return '';
+  if (useDeepResearch) {
+    let reasoningText = text;
+    const finalReportIndex = text.indexOf('<final-report>');
+    if (finalReportIndex !== -1) {
+      reasoningText = text.substring(0, finalReportIndex);
+    }
+    // For deep research, format the output by removing some tags and adding separators for others.
+    return reasoningText
+      .replace(/<report-plan>/g, '')
+      .replace(/<\/report-plan>/g, '\n')
+      .replace(/<search-task>/g, '\n---\n**Search Task**\n')
+      .replace(/<\/search-task>/g, '\n---\n');
+  }
+
+  // If there is no <final-report> tag, return the whole text
+  if (!text.includes('<final-report>')) {
+    return text;
+  }
+  // Remove all <final-report>...</final-report> blocks
+  let withoutFinalReport = text.replace(/<final-report>[\s\S]*?<\/final-report>/g, '');
+  // Extract <report-plan>...</report-plan> and <search-task>...</search-task> blocks
+  let reportPlans = Array.from(withoutFinalReport.matchAll(/<report-plan>([\s\S]*?)<\/report-plan>/g)).map(m => m[1]);
+  let searchTasks = Array.from(withoutFinalReport.matchAll(/<search-task>([\s\S]*?)<\/search-task>/g)).map(m => m[1]);
+  return [...reportPlans, ...searchTasks].join('\n---\n');
+}
+
 function Chat({
   modelFamily,
   messages: propMessages,
@@ -40,6 +91,7 @@ function Chat({
   onBranchesChange,
   isTemporaryChat,
   chatContainerRef,
+  useDeepResearch,
 }) {
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
   const scrollRef = useRef(null);
@@ -279,6 +331,8 @@ function Chat({
             if (themeType === 'dark') msgText = '#E0E8FF';
             if (themeType === 'light') msgText = '#2A222E';
             let msgContent = typeof msg.text === 'string' && msg.text.length > 0 ? msg.text : (msg.content || '');
+            // Clean special tags from main message content
+            msgContent = cleanSpecialTags(useDeepResearch ? msg.thinking : msgContent, useDeepResearch);
             let contentArray = Array.isArray(msgContent) ? msgContent : null;
             let glowGradient = '';
             if (bgObj.value === 'model-glow' && (msg.role === 'assistant' || msg.sender === 'llm')) {
@@ -359,7 +413,7 @@ function Chat({
                       boxSizing: 'border-box',
                     }}
                   >
-                    {(msg.role === 'assistant' || msg.sender === 'llm') && msg.thinking && msg.thinking.trim() !== '' && (
+                    {((msg.role === 'assistant' || msg.sender === 'llm') && msg.thinking && msg.thinking.trim() !== '') && (
                       <>
                         <div
                           onClick={() => handleToggleReasoning(idx)}
@@ -375,13 +429,13 @@ function Chat({
                             fontSize: 14,
                             userSelect: 'none',
                           }}
-                          aria-label={showReasoningMap[idx] ? 'Hide reasoning' : 'Show reasoning'}
+                          aria-label={showReasoningMap[idx] ? (msg.thinkingType === 'final-report' ? 'Hide Deep Search' : 'Hide reasoning') : (msg.thinkingType === 'final-report' ? 'Show Deep Search' : 'Show reasoning')}
                           tabIndex={0}
                         >
                           <Lightbulb size={16} style={{ marginRight: 6, opacity: 0.8 }} />
                           {isStreaming && (msg.id === lastLlmMsgId || msg.messageId === lastLlmMsgId)
-                            ? <span>{modelDisplayName || 'Model'} is reasoning{ellipsis}</span>
-                            : <span>{showReasoningMap[idx] ? 'Hide reasoning' : 'Show reasoning'}</span>
+                            ? <span>{modelDisplayName || 'Model'} is {msg.thinkingType === 'final-report' ? 'deep searching' : 'reasoning'}{ellipsis}</span>
+                            : <span>{showReasoningMap[idx] ? (msg.thinkingType === 'final-report' ? 'Hide Deep Search' : 'Hide reasoning') : (msg.thinkingType === 'final-report' ? 'Show Deep Search' : 'Show reasoning')}</span>
                           }
                         </div>
                       </>
@@ -411,9 +465,9 @@ function Chat({
                     {contentArray ? (
                       <>
                         <AnimatePresence initial={false}>
-                          {msg.thinking && showReasoningMap[idx] && (
+                          {msg.thinking && (showReasoningMap[idx] || (useDeepResearch && isStreaming && (msg.id === lastLlmMsgId || msg.messageId === lastLlmMsgId))) && (
                             <motion.div
-                              key='reasoning'
+                              key={contentArray ? 'reasoning' : 'reasoning-md'}
                               initial={{ opacity: 0, y: -8 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -8 }}
@@ -421,7 +475,68 @@ function Chat({
                               style={{ fontStyle: 'italic', color: '#BFB3CB', opacity: 0.7, display: 'flex', alignItems: 'center', marginBottom: 4 }}
                             >
                               <Lightbulb size={16} style={{ marginRight: 6, opacity: 0.8 }} />
-                              <span>{msg.thinking}</span>
+                              <span style={{ width: '100%' }}>
+                                {msg.thinkingType === 'final-report' ? '' : ''}
+                                <ReactMarkdown
+                                  rehypePlugins={[rehypeHighlight]}
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                    code({node, inline, className, children, ...props}) {
+                                      const match = /language-(\w+)/.exec(className || '')
+                                      if (inline || !match) {
+                                        return <code className='bg-[#2A222E] px-1 py-0.5 rounded text-[#E0E8FF] font-mono text-sm' {...props}>{children}</code>
+                                      }
+                                      const codeString = node.children.map(hastToText).join('');
+                                      const lineCount = codeString.split('\n').length;
+                                      const buttonClass = lineCount === 2
+                                        ? 'absolute top-6 right-4 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100'
+                                        : 'absolute top-3 right-2 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100';
+                                      return (
+                                        <pre className={`chatMarkdownPre bg-[#2A222E] p-3 rounded-lg overflow-x-auto my-2 relative group ${styles.chatMarkdownPre}`} style={{ maxWidth: 600, overflowX: 'auto' }}>
+                                          <code className={'text-[#E0E8FF] font-mono text-sm ' + (className || '')}>{children}</code>
+                                          <button
+                                            className={buttonClass}
+                                            onClick={() => handleCopy(codeString)}
+                                            type='button'
+                                            tabIndex={0}
+                                            aria-label='Copy code'
+                                            style={{ position: 'absolute' }}
+                                          >
+                                            <Copy size={16} className='text-[#BFB3CB]' />
+                                          </button>
+                                        </pre>
+                                      );
+                                    },
+                                    ul({children, ...props}) {
+                                      return <ul className='list-disc pl-6 my-2'>{children}</ul>;
+                                    },
+                                    ol({children, ...props}) {
+                                      return <ol className='list-decimal pl-6 my-2'>{children}</ol>;
+                                    },
+                                    li({children, ...props}) {
+                                      return <li className='my-1'>{children}</li>;
+                                    },
+                                    hr(props) {
+                                      return <hr style={{ margin: '16px 0', border: 0, borderTop: '2px solid ', opacity: 0.7 }} {...props} />;
+                                    },
+                                    a({href, children, ...props}) {
+                                      return (
+                                        <a
+                                          href={href}
+                                          target='_blank'
+                                          rel='noopener noreferrer'
+                                          style={{ color: '#38bdf8', textDecoration: 'underline', wordBreak: 'break-all' }}
+                                          {...props}
+                                        >
+                                          {children}
+                                        </a>
+                                      );
+                                    },
+                                  }}
+                                >
+                                  {extractReasoningContent(msg.thinking, useDeepResearch)}
+                                </ReactMarkdown>
+                              </span>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -445,9 +560,9 @@ function Chat({
                     ) : (
                       <>
                         <AnimatePresence initial={false}>
-                          {msg.thinking && showReasoningMap[idx] && (
+                          {msg.thinking && (showReasoningMap[idx] || (useDeepResearch && isStreaming && (msg.id === lastLlmMsgId || msg.messageId === lastLlmMsgId))) && (
                             <motion.div
-                              key='reasoning-md'
+                              key={contentArray ? 'reasoning' : 'reasoning-md'}
                               initial={{ opacity: 0, y: -8 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -8 }}
@@ -455,7 +570,68 @@ function Chat({
                               style={{ fontStyle: 'italic', color: '#BFB3CB', opacity: 0.7, display: 'flex', alignItems: 'center', marginBottom: 4 }}
                             >
                               <Lightbulb size={16} style={{ marginRight: 6, opacity: 0.8 }} />
-                              <span>{msg.thinking}</span>
+                              <span style={{ width: '100%' }}>
+                                {msg.thinkingType === 'final-report' ? '' : ''}
+                                <ReactMarkdown
+                                  rehypePlugins={[rehypeHighlight]}
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                    code({node, inline, className, children, ...props}) {
+                                      const match = /language-(\w+)/.exec(className || '')
+                                      if (inline || !match) {
+                                        return <code className='bg-[#2A222E] px-1 py-0.5 rounded text-[#E0E8FF] font-mono text-sm' {...props}>{children}</code>
+                                      }
+                                      const codeString = node.children.map(hastToText).join('');
+                                      const lineCount = codeString.split('\n').length;
+                                      const buttonClass = lineCount === 2
+                                        ? 'absolute top-6 right-4 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100'
+                                        : 'absolute top-3 right-2 p-1 rounded hover:bg-[#332940] transition opacity-70 group-hover:opacity-100';
+                                      return (
+                                        <pre className={`chatMarkdownPre bg-[#2A222E] p-3 rounded-lg overflow-x-auto my-2 relative group ${styles.chatMarkdownPre}`} style={{ maxWidth: 600, overflowX: 'auto' }}>
+                                          <code className={'text-[#E0E8FF] font-mono text-sm ' + (className || '')}>{children}</code>
+                                          <button
+                                            className={buttonClass}
+                                            onClick={() => handleCopy(codeString)}
+                                            type='button'
+                                            tabIndex={0}
+                                            aria-label='Copy code'
+                                            style={{ position: 'absolute' }}
+                                          >
+                                            <Copy size={16} className='text-[#BFB3CB]' />
+                                          </button>
+                                        </pre>
+                                      );
+                                    },
+                                    ul({children, ...props}) {
+                                      return <ul className='list-disc pl-6 my-2'>{children}</ul>;
+                                    },
+                                    ol({children, ...props}) {
+                                      return <ol className='list-decimal pl-6 my-2'>{children}</ol>;
+                                    },
+                                    li({children, ...props}) {
+                                      return <li className='my-1'>{children}</li>;
+                                    },
+                                    hr(props) {
+                                      return <hr style={{ margin: '16px 0', border: 0, borderTop: '2px solid ', opacity: 0.7 }} {...props} />;
+                                    },
+                                    a({href, children, ...props}) {
+                                      return (
+                                        <a
+                                          href={href}
+                                          target='_blank'
+                                          rel='noopener noreferrer'
+                                          style={{ color: '#38bdf8', textDecoration: 'underline', wordBreak: 'break-all' }}
+                                          {...props}
+                                        >
+                                          {children}
+                                        </a>
+                                      );
+                                    },
+                                  }}
+                                >
+                                  {extractReasoningContent(msg.thinking, useDeepResearch)}
+                                </ReactMarkdown>
+                              </span>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -522,7 +698,7 @@ function Chat({
                     )}
                     {(msg.role === 'assistant' || msg.sender === 'llm') && modelKey && (
                       <div style={{ fontSize: '0.75rem', color: msgText, marginTop: 4, opacity: 0.7 }}>
-                        Model: {modelDisplayName}
+                        Model: {useDeepResearch ? 'deep-research' : modelDisplayName}
                       </div>
                     )}
                     {isUser && Array.isArray(msg.images) && msg.images.length > 0 && (

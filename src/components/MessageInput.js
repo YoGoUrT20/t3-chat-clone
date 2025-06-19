@@ -18,8 +18,9 @@ import Tooltip from './Tooltip';
 import toast from 'react-hot-toast';
 import ToolsMenu from './ToolsMenu';
 import { createPortal } from 'react-dom';
+import { models } from '../models';
 
-function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message, setMessage, selectedModel, setSelectedModel, isTemporaryChat, onStartTemporaryChat, useWebSearch, setUseWebSearch, messagesLeft, resetAt, user }) {
+function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message, setMessage, selectedModel, setSelectedModel, isTemporaryChat, onStartTemporaryChat, useWebSearch, setUseWebSearch, useDeepResearch, setUseDeepResearch, messagesLeft, resetAt, user }) {
   const [previewFiles, setPreviewFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState(null);
@@ -38,6 +39,8 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
   const toolsDropdownRef = useRef(null);
   const toolsButtonRef = useRef(null);
   const [iconTooltip, setIconTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
+
+  const modelToDisplay = models.find(m => m.name === selectedModel?.name) || selectedModel;
 
   // Pick a random placeholder only once per mount
   const randomPlaceholderRef = useRef(MESSAGE_PLACEHOLDERS[Math.floor(Math.random() * MESSAGE_PLACEHOLDERS.length)]);
@@ -317,7 +320,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
         setPreviewFiles([]);
         form.setValue('images', []);
         setMessage('');
-        await onSubmit({ ...data, images }, ...args.slice(1), model);
+        await onSubmit({ ...data, images, useDeepResearch }, ...args.slice(1), model);
       })}
         className={cn('relative', isMobile && 'fixed bottom-0 left-0 w-full z-30 p-2 pb-4', !isMobile && '')}
         style={isMobile ? { 
@@ -339,7 +342,7 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
               className='flex items-center gap-2 bg-[#F9B4D0]/30 text-white px-2 py-0.5 rounded text-xs font-bold'
               style={{ fontSize: 14, fontWeight: 600, letterSpacing: 0.1 }}
             >
-              {selectedModel.displayName}
+              {useDeepResearch ? 'deep-research' : modelToDisplay?.displayName}
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: '0.5rem' }}>
                 {isTemporaryChat && (
                   <span
@@ -358,6 +361,18 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
                     onMouseEnter={e => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Web search enabled for this chat' });
+                    }}
+                    onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
+                    style={{ display: 'flex', alignItems: 'center' }}
+                  >
+                    <Globe size={17} style={{ color: '#fff', opacity: 0.95 }} />
+                  </span>
+                )}
+                {useDeepResearch && (
+                  <span
+                    onMouseEnter={e => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setIconTooltip({ visible: true, x: rect.left + rect.width / 2, y: rect.top - 32, text: 'Deep Research enabled for this chat' });
                     }}
                     onMouseLeave={() => setIconTooltip(iconTooltip => ({ ...iconTooltip, visible: false }))}
                     style={{ display: 'flex', alignItems: 'center' }}
@@ -492,6 +507,8 @@ function MessageInput({ isLoading, onSubmit, onOpenOptions, onOpenTools, message
                       hideTooltip={hideTooltip}
                       useWebSearch={useWebSearch}
                       setUseWebSearch={setUseWebSearch}
+                      useDeepResearch={useDeepResearch}
+                      setUseDeepResearch={setUseDeepResearch}
                       onSelectModel={modelSlug => {
                         if (setSelectedModel) {
                           setSelectedModel({
@@ -556,6 +573,8 @@ MessageInput.propTypes = {
   onStartTemporaryChat: PropTypes.func,
   useWebSearch: PropTypes.bool.isRequired,
   setUseWebSearch: PropTypes.func.isRequired,
+  useDeepResearch: PropTypes.bool.isRequired,
+  setUseDeepResearch: PropTypes.func.isRequired,
   messagesLeft: PropTypes.number,
   resetAt: PropTypes.string,
   user: PropTypes.object,

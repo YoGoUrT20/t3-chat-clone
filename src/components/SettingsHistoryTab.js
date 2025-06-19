@@ -124,9 +124,9 @@ export default function SettingsHistoryTab({
 
   return (
     <div className='p-6 flex flex-col gap-6'>
-      <div className='bg-[#f5f5fa] dark:bg-[#232228] border border-[#ececec] dark:border-[#232228] rounded-xl shadow-sm p-6 flex flex-col md:flex-row md:items-end md:gap-x-4 gap-y-4 items-stretch max-w-[900px] mx-auto'>
+      <div className='bg-[#232228] border border-[#232228] rounded-xl shadow-sm p-6 flex flex-col md:flex-row md:items-end md:gap-x-4 gap-y-4 items-stretch max-w-[900px] mx-auto'>
         <div className='flex flex-col min-w-0 flex-1'>
-          <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] mb-2 font-medium'>Format</label>
+          <label className='text-xs text-[#bdbdbd] mb-2 font-medium'>Format</label>
           <div className='relative'>
             <Dropdown
               items={[{ code: 'json', name: 'JSON' }, { code: 'csv', name: 'CSV' }]}
@@ -139,7 +139,7 @@ export default function SettingsHistoryTab({
           </div>
         </div>
         <div className='flex flex-col min-w-0 flex-1'>
-          <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] mb-2 font-medium'>Conversation</label>
+          <label className='text-xs text-[#bdbdbd] mb-2 font-medium'>Conversation</label>
           <div className='relative'>
             <Dropdown
               items={[{ code: '', name: 'All' }, ...conversations.map(c => ({ code: c.id, name: c.name || (c.messages && c.messages[0] && c.messages[0].content ? c.messages[0].content.slice(0, 32) + (c.messages[0].content.length > 32 ? '…' : '') : c.id) }))]}
@@ -152,32 +152,32 @@ export default function SettingsHistoryTab({
           </div>
         </div>
         <div className='flex flex-col min-w-0 flex-1'>
-          <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] mb-2 font-medium'>Start Date</label>
+          <label className='text-xs text-[#bdbdbd] mb-2 font-medium'>Start Date</label>
           <input
             type='date'
             value={filterStartDate || ''}
             onChange={e => setFilterStartDate(e.target.value)}
-            className='w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#ececec] dark:border-[#232228] bg-white dark:bg-[#18171c] text-[#0e0e10] dark:text-white text-sm focus:ring-2 focus:ring-[#d1b3c4] transition min-h-[40px]'
+            className='w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#232228] bg-[#18171c] text-white text-sm focus:ring-2 focus:ring-[#d1b3c4] transition min-h-[40px]'
             style={{ minHeight: 40 }}
           />
         </div>
         <div className='flex flex-col min-w-0 flex-1'>
-          <label className='text-xs text-[#90808A] dark:text-[#bdbdbd] mb-2 font-medium'>End Date</label>
+          <label className='text-xs text-[#bdbdbd] mb-2 font-medium'>End Date</label>
           <input
             type='date'
             value={filterEndDate || ''}
             onChange={e => setFilterEndDate(e.target.value)}
-            className='w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#ececec] dark:border-[#232228] bg-white dark:bg-[#18171c] text-[#0e0e10] dark:text-white text-sm focus:ring-2 focus:ring-[#d1b3c4] transition min-h-[40px]'
+            className='w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#232228] bg-[#18171c] text-white text-sm focus:ring-2 focus:ring-[#d1b3c4] transition min-h-[40px]'
             style={{ minHeight: 40 }}
           />
         </div>
-        <button onClick={handleExport} className='w-full mt-2 md:mt-0 md:w-auto md:self-end px-5 py-2.5 rounded-lg bg-[#d1b3c4] dark:bg-[#a97ca5] text-[#0e0e10] dark:text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:bg-[#bfa0b2] dark:hover:bg-[#8d6b8a] transition'>
+        <button onClick={handleExport} className='w-full mt-2 md:mt-0 md:w-auto md:self-end px-5 py-2.5 rounded-lg bg-[#a97ca5] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:bg-[#8d6b8a] transition'>
           <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4'/></svg>
           <span>Export</span>
         </button>
         <button
           onClick={() => setShowDeleteDialog(true)}
-          className='w-full mt-2 md:mt-0 md:w-auto md:self-end px-5 py-2.5 rounded-lg bg-[#ff6b81] dark:bg-[#a8324a] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:bg-[#e05a6f] dark:hover:bg-[#8d2236] transition'
+          className='w-full mt-2 md:mt-0 md:w-auto md:self-end px-5 py-2.5 rounded-lg bg-[#a8324a] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:bg-[#8d2236] transition'
           disabled={deleting || loadingConvos || (!conversations.length)}
           type='button'
         >
@@ -193,13 +193,13 @@ export default function SettingsHistoryTab({
           description={!filterConversationId ? 'This action is irreversible. All your conversations and messages will be permanently deleted. Are you sure you want to continue?' : 'This action is irreversible. This conversation and all its messages will be permanently deleted. Are you sure you want to continue?'}
         />
       </div>
-      {loadingConvos && <div className='text-sm text-[#90808A] dark:text-[#bdbdbd] mt-2'>Loading conversations...</div>}
+      {loadingConvos && <div className='text-sm text-[#bdbdbd] mt-2'>Loading conversations...</div>}
       {!filterConversationId && conversations.length > 0 && !loadingConvos && (
         <div className='mt-6 text-sm font-bold text-center' style={{ color: '#F9B4D0' }}>Select a chat to view the conversation</div>
       )}
       {filterConversationId && (() => {
         const conv = conversations.find(c => c.id === filterConversationId)
-        if (!conv) return <div className='mt-6 text-sm text-[#90808A] dark:text-[#bdbdbd]'>Conversation not found.</div>
+        if (!conv) return <div className='mt-6 text-sm text-[#bdbdbd]'>Conversation not found.</div>
         const fontFamily = localStorage.getItem('chat_font') || 'Roboto'
         const themeName = localStorage.getItem('chat_theme') || 'Classic'
         const themeObj = colorThemes.find(t => t.name === themeName) || colorThemes[0]
@@ -212,18 +212,15 @@ export default function SettingsHistoryTab({
         })()
         return (
           <div className='mt-6'>
-            <div className='text-base font-semibold text-[#0e0e10] dark:text-white mb-2'>{conv.name || (conv.messages && conv.messages[0] && conv.messages[0].content ? conv.messages[0].content.slice(0, 48) + (conv.messages[0].content.length > 48 ? '…' : '') : conv.id)}</div>
+            <div className='text-base font-semibold text-white mb-2'>{conv.name || (conv.messages && conv.messages[0] && conv.messages[0].content ? conv.messages[0].content.slice(0, 48) + (conv.messages[0].content.length > 48 ? '…' : '') : conv.id)}</div>
             <div
-              className='flex flex-col gap-2 max-h-[500px] overflow-y-auto hide-scrollbar rounded-lg p-4 border border-[#ececec] dark:border-[#232228]'
-              style={{ background: bgObj.style && bgObj.style.background ? bgObj.style.background : (bgObj.themeType === 'dark' ? '#232228' : '#f5f5fa') }}
+              className='flex flex-col gap-2 max-h-[500px] overflow-y-auto hide-scrollbar rounded-lg p-4 border border-[#232228]'
+              style={{ background: '#232228' }}
             >
               {(conv.messages || []).map((msg, idx) => {
                 const isUser = msg.role === 'user' || msg.sender === 'user'
                 const msgBg = isUser ? themeObj.user.bg : themeObj.assistant.bg
-                let msgText = isUser ? themeObj.user.text : themeObj.assistant.text
-                const themeType = themeObj.themeType
-                if (themeType === 'dark') msgText = '#E0E8FF'
-                if (themeType === 'light') msgText = '#2A222E'
+                let msgText = '#E0E8FF'
                 let glowGradient = ''
                 if (bgObj.value === 'model-glow' && (msg.role === 'assistant' || msg.sender === 'llm')) {
                   let modelName = (msg.model || msg.modelName || msg.model_name || '').toLowerCase()

@@ -81,7 +81,7 @@ function SidePanel({ onReset, visible, setVisible }) {
         <SidebarMenuButton asChild>
           <Button
             variant='ghost'
-            className='flex items-center px-3 py-2 text-sm rounded-md transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1F1F23] w-full justify-start'
+            className='flex items-center px-3 py-2 text-sm rounded-md transition-colors text-gray-300 hover:text-white hover:bg-[#1F1F23] w-full justify-start'
             onClick={() => navigate(to)}
           >
             <Icon className='h-4 w-4 mr-3 flex-shrink-0' />
@@ -160,11 +160,9 @@ function SidePanel({ onReset, visible, setVisible }) {
     <SidebarProvider defaultOpen={visible}>
       <Sidebar>
         <SidebarHeader>
-          <Button onClick={() => { window.pendingReset = true; navigate('/', { replace: true }); }} className='w-full flex items-center gap-2 py-2 justify-center mt-6'>
-            <span className='flex items-center gap-2'>
-              <img src='/quiver.svg' alt='Quiver Logo' width={28} height={28} className='mr-2' style={{ display: 'inline-block' }} />
-              <span className='text-xl font-bold tracking-tight text-gray-900 dark:text-white'>Quiver</span>
-            </span>
+          <Button onClick={() => { window.pendingReset = true; navigate('/', { replace: true }); }} className='w-full flex items-center justify-center gap-1 py-2 mt-6 -ml-6'>
+            <img src='/quiver.svg' alt='Quiver Logo' width={28} height={28} />
+            <span className='text-xl font-bold tracking-tight text-white'>Quiver</span>
           </Button>
         </SidebarHeader>
         <SidebarContent>
@@ -182,7 +180,7 @@ function SidePanel({ onReset, visible, setVisible }) {
           <div className='bg-transparent'>
             <div className='flex flex-col items-center px-2 py-2'>
               <div className='relative w-11/12 max-w-xs'>
-                <Search size={16} className='text-gray-500 dark:text-gray-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none' />
+                <Search size={16} className='text-gray-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none' />
                 <SidebarInput
                   ref={searchInputRef}
                   placeholder='Search your conversations...'
@@ -196,18 +194,18 @@ function SidePanel({ onReset, visible, setVisible }) {
                     type='button'
                     onClick={() => setSearchValue('')}
                     aria-label='Clear search'
-                    className='absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+                    className='absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[#1F1F23] transition-colors'
                   >
-                    <span className='text-gray-500 dark:text-gray-300'>&#215;</span>
+                    <span className='text-gray-300'>&#215;</span>
                   </button>
                 )}
               </div>
             </div>
-            <div className='h-0.5 w-7/12 bg-gray-200 dark:bg-[#28242A] my-1 mx-auto' />
+            <div className='h-0.5 w-7/12 bg-[#28242A] my-1 mx-auto' />
           </div>
           <div className='space-y-6 mt-4'>
             {!user ? null : loadingConvos ? (
-              <div className='text-center text-gray-500 dark:text-gray-400 py-8'>Loading...</div>
+              <div className='text-center text-gray-400 py-8'>Loading...</div>
             ) : hasResults ? (
               <>
                 {['Today', 'Yesterday', 'Earlier'].map(label =>
@@ -220,7 +218,7 @@ function SidePanel({ onReset, visible, setVisible }) {
                             <SidebarMenuButton asChild>
                               <Button
                                 variant='ghost'
-                                className='flex items-center px-3 py-2 text-sm rounded-md transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1F1F23] w-full justify-start overflow-hidden text-ellipsis'
+                                className='flex items-center px-3 py-2 text-sm rounded-md transition-colors text-gray-300 hover:text-white hover:bg-[#1F1F23] w-full justify-start overflow-hidden text-ellipsis'
                                 style={{ maxWidth: '100%' }}
                                 onMouseEnter={e => showTooltip(e, conv.messages?.[0]?.content || 'Conversation', conv)}
                                 onMouseLeave={hideTooltip}
@@ -247,7 +245,7 @@ function SidePanel({ onReset, visible, setVisible }) {
                                   </motion.span>
                                 </AnimatePresence>
                                 </span>
-                                <span className='text-xs text-gray-400 dark:text-gray-500 truncate chat-title-model text-right' style={{ width: 80, display: 'inline-block', marginLeft: 8 }}>
+                                <span className='text-xs text-gray-500 truncate chat-title-model text-right' style={{ width: 80, display: 'inline-block', marginLeft: 8 }}>
                                   {truncate(conv.modelDisplayName || '', 20)}
                                 </span>
                               </Button>
@@ -260,7 +258,7 @@ function SidePanel({ onReset, visible, setVisible }) {
                 )}
               </>
             ) : (
-              <div className='text-center text-gray-500 dark:text-gray-400 py-8'>No results found.</div>
+              <div className='text-center text-gray-400 py-8'>No results found.</div>
             )}
           </div>
         </SidebarContent>
@@ -281,37 +279,37 @@ function SidePanel({ onReset, visible, setVisible }) {
           {user ? (
             <Button
               variant='ghost'
-              className='flex items-center gap-3 py-3 w-full justify-start hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              className='flex items-center gap-3 py-3 w-full justify-start hover:bg-[#1F1F23] transition-colors'
               style={{paddingLeft: 0, paddingRight: 0, minHeight: 52}}
               onClick={() => navigate('/settings')}
             >
               <img
                 alt={user.displayName}
-                className='w-10 h-10 rounded-full border border-gray-300 dark:border-[#3B3337] ml-2'
+                className='w-10 h-10 rounded-full border border-[#3B3337] ml-2'
                 src={user.photoURL}
                 onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/default-avatar.png'; }}
               />
               <div className='flex flex-col items-start ml-2 justify-center'>
-                <span className='font-medium text-base text-gray-900 dark:text-white'>{user.displayName}</span>
+                <span className='font-medium text-base text-white'>{user.displayName}</span>
                 {user.status === 'premium' ? (
                   <span className='text-xs flex items-center gap-1 text-[#DC749E] font-bold'><BadgeCheck size={14} />Premium</span>
                 ) : (
-                  <span className='text-xs text-gray-500 dark:text-gray-400'>Free</span>
+                  <span className='text-xs text-gray-400'>Free</span>
                 )}
               </div>
             </Button>
           ) : loading ? null : (
             <Button
               variant='ghost'
-              className='flex items-center gap-3 py-3 w-full justify-start hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors'
+              className='flex items-center gap-3 py-3 w-full justify-start hover:bg-[#1F1F23] transition-colors'
               style={{paddingLeft: 0, paddingRight: 0, minHeight: 52}}
               onClick={() => navigate('/auth')}
             >
-              <span className='w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-[#19171D] ml-2'>
-                <LogIn size={18} className='text-gray-500 dark:text-gray-300' />
+              <span className='w-10 h-10 flex items-center justify-center rounded-full bg-[#19171D] ml-2'>
+                <LogIn size={18} className='text-gray-300' />
               </span>
               <div className='flex flex-col items-start ml-2 justify-center'>
-                <span className='font-medium text-base text-gray-900 dark:text-gray-300'>Login</span>
+                <span className='font-medium text-base text-gray-300'>Login</span>
               </div>
             </Button>
           )}

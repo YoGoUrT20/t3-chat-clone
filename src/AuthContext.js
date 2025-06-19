@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { auth } from './firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
@@ -85,8 +85,22 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
   };
 
+  // Add a function to refresh user from Firestore
+  const refreshUserFromFirestore = useCallback(async () => {
+    if (!user) return;
+    const db = getFirestore();
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      const mergedUser = { ...user, ...data };
+      setUser(mergedUser);
+      localStorage.setItem('user', JSON.stringify(mergedUser));
+    }
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOutUser, apiKey }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOutUser, apiKey, setUser, refreshUserFromFirestore }}>
       {children}
     </AuthContext.Provider>
   );

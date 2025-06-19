@@ -26,15 +26,15 @@ export default function MobileHistory({ onSelectChat, topPadding = '1.5rem' }) {
   if (!user) return null;
 
   return (
-    <div className='w-full px-2' style={{ paddingTop: topPadding, paddingBottom: '1.5rem', background: '#18171a', minHeight: '100vh' }}>
+    <div className='w-full px-2 text-white' style={{ paddingTop: topPadding, paddingBottom: '1.5rem', backgroundColor: '#18171a', minHeight: '100vh' }}>
       <button
         type='button'
         onClick={() => {
           navigate('/');
           if (onSelectChat) onSelectChat();
         }}
-        className='flex items-center gap-2 px-4 py-3 font-semibold w-full mb-4 justify-center '
-        style={{ minHeight: 48 }}
+        className='flex items-center gap-2 px-4 py-3 font-semibold w-full mb-4 justify-center text-white hover:bg-[#28242A] transition-colors'
+        style={{ minHeight: 48, backgroundColor: '#232228' }}
       >
         <PlusCircle className='h-5 w-5' />
         <span>New chat</span>
@@ -45,7 +45,8 @@ export default function MobileHistory({ onSelectChat, topPadding = '1.5rem' }) {
           value={searchValue}
           onChange={e => setSearchValue(e.target.value)}
           placeholder='Search your conversations...'
-          className='w-full px-4 py-2 rounded-lg border border-zinc-700 bg-[#232228] text-white focus:outline-none focus:ring-2 focus:ring-pink-400 text-base shadow-sm'
+          className='w-full px-4 py-2 rounded-lg border border-zinc-700 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 text-base shadow-sm placeholder-zinc-400'
+          style={{ backgroundColor: '#232228' }}
           autoComplete='off'
         />
       </div>
@@ -62,8 +63,8 @@ export default function MobileHistory({ onSelectChat, topPadding = '1.5rem' }) {
                     <Button
                       key={conv.id}
                       variant='ghost'
-                      className='flex items-center px-3 py-3 rounded-lg text-base text-left gap-3 bg-[#232228] text-white hover:bg-[#28242A] transition-colors w-full justify-start'
-                      style={{ minHeight: 56 }}
+                      className='flex items-center px-3 py-3 rounded-lg text-base text-left gap-3 text-white hover:bg-[#28242A] transition-colors w-full justify-start'
+                      style={{ minHeight: 56, backgroundColor: '#232228' }}
                       onClick={() => {
                         navigate(`/chat/${conv.id}`);
                         if (onSelectChat) onSelectChat();

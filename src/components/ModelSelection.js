@@ -167,28 +167,28 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
     <div className={cn('flex justify-center w-full bg-transparent', className)} style={{ position: 'relative' }}>
       <div className='flex flex-col items-center w-full'>
         {useOwnKey && (
-          <div className={`w-full max-w-2xl flex items-center gap-2 px-5 py-3 mb-4 rounded-xl border border-[#ececec] dark:border-[#232228] bg-white/70 dark:bg-zinc-900/60 shadow`}
-               style={{ color: '#232228', fontWeight: 600, fontSize: '1rem' }}>
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="flex-shrink-0 text-[#DC749E] dark:text-[#F9B4D0]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
-            <span className='flex-1 text-left text-[#232228] dark:text-[#ececec]'>Using your own OpenRouter API key. All models are available.</span>
+          <div className={`w-full max-w-2xl flex items-center gap-2 px-5 py-3 mb-4 rounded-xl border border-[#232228] bg-zinc-900/60 shadow`}
+               style={{ color: '#ececec', fontWeight: 600, fontSize: '1rem' }}>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="flex-shrink-0 text-[#F9B4D0]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" /></svg>
+            <span className='flex-1 text-left text-[#ececec]'>Using your own OpenRouter API key. All models are available.</span>
           </div>
         )}
         <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[70vh] max-w-[1400px] overflow-y-auto ${styles.ModelSelectionScrollbar} px-4 mt-6`}>
         {(!user || user.status !== 'premium') && (
         <div className='col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 mb-2'>
-              <div className='backdrop-blur-xl bg-white/60 dark:bg-zinc-900/60 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between px-8 py-8 min-h-[120px] pointer-events-auto'>
+              <div className='backdrop-blur-xl bg-zinc-900/60 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between px-8 py-8 min-h-[120px] pointer-events-auto'>
                 <div className='flex flex-col items-start w-full sm:w-auto mb-4 sm:mb-0'>
-                  <span className='text-2xl font-bold text-zinc-900 dark:text-zinc-100'>Subscription</span>
-                  <span className='text-lg text-zinc-700 dark:text-zinc-300 mt-1'>9$ to access all models</span>
+                  <span className='text-2xl font-bold text-zinc-100'>Subscription</span>
+                  <span className='text-lg text-zinc-300 mt-1'>9$ to access all models</span>
                 </div>
                 <div className='flex flex-col items-end w-full sm:w-auto'>
                   <Button
-                    className='text-base font-semibold px-8 py-3 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200'
+                    className='text-base font-semibold px-8 py-3 rounded-lg bg-zinc-100 text-zinc-900 hover:bg-zinc-200'
                     onClick={() => navigate('/settings', { state: { selectedTab: 'Subscription' } })}
                   >
                     Subscribe
                   </Button>
-                  <span className='text-sm text-zinc-600 dark:text-zinc-400 mt-2 self-end'>9$/month</span>
+                  <span className='text-sm text-zinc-400 mt-2 self-end'>9$/month</span>
                 </div>
               </div>
             </div>
@@ -201,7 +201,7 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
                 onChange={e => setSearch(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder='Search models...'
-                className='w-full max-w-md px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500 text-base mb-2 shadow-sm'
+                className='w-full max-w-md px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500 text-base mb-2 shadow-sm'
                 aria-label='Search models'
                 autoComplete='off'
               />
@@ -216,7 +216,7 @@ function ModelSelection({ items = models, className, selectedModel, onModelSelec
                 'px-3 py-1 rounded-full border text-xs font-semibold transition',
                 selectedTags.includes(tag)
                   ? 'bg-primary text-primary-foreground border-primary shadow'
-                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 hover:bg-primary/10 dark:hover:bg-primary/20'
+                  : 'bg-zinc-800 text-zinc-100 border-zinc-700 hover:bg-primary/20'
               )}
               style={{ outline: 'none' }}
               tabIndex={0}

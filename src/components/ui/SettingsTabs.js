@@ -48,11 +48,11 @@ export default function SettingsTabs({ tabs, activeIndex, setActiveIndex }) {
   return (
     <div className={`relative w-full ${isMobile ? 'max-w-full px-1 py-2' : 'max-w-[900px]'}`}>
       <div
-        className={`${isMobile ? 'hidden' : 'absolute h-[30px] transition-all duration-300 ease-out bg-[#0e0f1114] dark:bg-[#ffffff1a] rounded-[6px] flex items-center'}`}
+        className={`${isMobile ? 'hidden' : 'absolute h-[30px] transition-all duration-300 ease-out bg-[#ffffff1a] rounded-[6px] flex items-center'}`}
         style={isMobile ? {} : { ...hoverStyle, opacity: hoveredIndex !== null ? 1 : 0 }}
       />
       <div
-        className={`${isMobile ? 'hidden' : 'absolute bottom-[-6px] h-[2px] bg-[#0e0f11] dark:bg-white transition-all duration-300 ease-out'}`}
+        className={`${isMobile ? 'hidden' : 'absolute bottom-[-6px] h-[2px] bg-white transition-all duration-300 ease-out'}`}
         style={isMobile ? {} : activeStyle}
       />
       <div className={`relative flex ${isMobile ? 'overflow-x-auto whitespace-nowrap w-full gap-1' : 'space-x-[6px] items-center'}`}>
@@ -60,7 +60,7 @@ export default function SettingsTabs({ tabs, activeIndex, setActiveIndex }) {
           <div
             key={index}
             ref={el => (tabRefs.current[index] = el)}
-            className={`${isMobile ? 'inline-block px-4 py-2 rounded-lg text-base font-semibold cursor-pointer transition-colors duration-300 min-w-[110px] text-center' : 'px-3 py-2 cursor-pointer transition-colors duration-300 h-[30px]'} ${index === activeIndex ? 'text-[#0e0e10] dark:text-white bg-[#ececec] dark:bg-[#232228]' : 'text-[#0e0f1199] dark:text-[#ffffff99] bg-transparent'}`}
+            className={`${isMobile ? 'inline-block px-4 py-2 rounded-lg text-base font-semibold cursor-pointer transition-colors duration-300 min-w-[110px] text-center' : 'px-3 py-2 cursor-pointer transition-colors duration-300 h-[30px]'} ${index === activeIndex ? 'text-white bg-[#232228]' : 'text-[#ffffff99] bg-transparent'}`}
             onMouseEnter={() => !isMobile && setHoveredIndex(index)}
             onMouseLeave={() => !isMobile && setHoveredIndex(null)}
             onClick={() => setActiveIndex(index)}

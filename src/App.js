@@ -170,29 +170,11 @@ function AppWithRouter() {
   // Apply customization settings globally
   React.useEffect(() => {
     function applyCustomization() {
-      // Remove global font customization
       // Background
       const background = localStorage.getItem('chat_bg');
-      if (background) {
-        // Try to find a matching background option with a style
-        try {
-          const backgroundOptions = [
-            { value: 'default', style: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' },
-            { value: 'model-glow', style: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' },
-            { value: 'glow-under', style: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)' },
-          ];
-          const bgObj = backgroundOptions.find(b => b.value === background);
-          if (bgObj && bgObj.style) {
-            document.body.style.background = bgObj.style;
-          } else {
-            document.body.style.background = '';
-          }
-        } catch {
-          document.body.style.background = '';
-        }
-      } else {
-        document.body.style.background = '';
-      }
+      // Always use dark theme background
+      const darkBackground = 'linear-gradient(135deg, #18181b 0%, #09090b 100%)';
+      document.body.style.background = darkBackground;
     }
     applyCustomization();
     // Listen for custom event to re-apply customization
@@ -284,7 +266,6 @@ function AppWithRouter() {
 export default function App() {
   return (
     <AuthProvider>
-      <div style={{ height: '15px', width: '100%', background: 'transparent' }} />
       <Router>
         <AppWithRouter />
       </Router>

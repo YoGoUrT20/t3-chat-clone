@@ -23,8 +23,8 @@ function ModelCard({
         'flex flex-col',
         styles.liquidGlassCard,
         'rounded-lg',
-        'border border-zinc-100 dark:border-zinc-800',
-        'hover:border-zinc-200 dark:hover:border-zinc-700',
+        'border border-zinc-800',
+        'hover:border-zinc-700',
         'transition-all duration-200',
         'shadow-sm',
         'p-2',
@@ -88,7 +88,7 @@ function ModelCard({
             />
           )}
           <h3
-            className='text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate cursor-pointer'
+            className='text-xs font-medium text-zinc-100 truncate cursor-pointer'
             ref={el => (nameRefs.current[item.name] = el)}
             onMouseEnter={() => handleNameMouseEnter(item)}
             onMouseLeave={handleNameMouseLeave}
@@ -109,7 +109,7 @@ function ModelCard({
                 key={cap}
                 className={cn(
                   'px-1.5 py-0.5 rounded-full text-[10px] font-medium',
-                  capabilityColors[cap] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                  capabilityColors[cap] || 'bg-zinc-800 text-zinc-100'
                 )}
               >
                 {cap}
@@ -119,15 +119,15 @@ function ModelCard({
             <span className='text-[10px] text-zinc-400'>No capabilities</span>
           )}
         </div>
-        <div className='mt-auto border-t border-zinc-100 dark:border-zinc-800 pt-1 relative'>
+        <div className='mt-auto border-t border-zinc-800 pt-1 relative'>
           <button
             className={cn(
               'w-full flex items-center justify-center gap-1',
               'py-1 px-2',
               'text-[10px] font-medium',
-              'text-zinc-600 dark:text-zinc-400',
-              'hover:text-zinc-900 dark:hover:text-zinc-100',
-              'hover:bg-zinc-100 dark:hover:bg-zinc-800/50',
+              'text-zinc-400',
+              'hover:text-zinc-100',
+              'hover:bg-zinc-800/50',
               'transition-colors duration-200',
               'relative',
             )}

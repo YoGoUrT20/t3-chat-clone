@@ -165,7 +165,7 @@ export default function EditShortcutsDialog({ open, onOpenChange, shortcuts, onS
                 className='fixed inset-0 z-50 flex items-center justify-center pointer-events-none'
               >
                 <div className='rounded-2xl shadow-2xl p-8 max-w-lg w-full focus:outline-none border border-[#332940] backdrop-blur-xl bg-[#201B25]/60 text-[#BFB3CB] pointer-events-auto relative flex flex-col items-center'>
-                  <div className='text-lg font-semibold mb-4 text-center text-base font-bold text-[#0e0e10] dark:text-white tracking-tight'>Edit Shortcuts</div>
+                  <div className='text-lg font-semibold mb-4 text-center text-base font-bold text-white tracking-tight'>Edit Shortcuts</div>
                   <div className='flex flex-col gap-6 max-h-[50vh] overflow-y-auto'>
                     {localShortcuts.map((sc, idx) => (
                       <div key={idx} className='flex items-center justify-between w-full'>
@@ -181,9 +181,9 @@ export default function EditShortcutsDialog({ open, onOpenChange, shortcuts, onS
                           {recordingIdx === idx
                             ? 'Press 2 keys...'
                             : sc.keys.length === 2
-                              ? sc.keys.map((k, i) => <span key={i} className='font-mono px-2 py-1 rounded bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] text-[#0e0e10] dark:text-white mx-0.5'>{k.toLowerCase() === 'meta' || k.toLowerCase() === 'ctrl' ? (isMac() ? '⌘' : 'CTRL') : k.toUpperCase()}</span>)
+                              ? sc.keys.map((k, i) => <span key={i} className='font-mono px-2 py-1 rounded bg-[#232228] border border-[#a97ca5] text-white mx-0.5'>{k.toLowerCase() === 'meta' || k.toLowerCase() === 'ctrl' ? (isMac() ? '⌘' : 'CTRL') : k.toUpperCase()}</span>)
                               : sc.keys.length === 1
-                                ? <span className='font-mono px-2 py-1 rounded bg-[#ececec] dark:bg-[#232228] border border-[#d1b3c4] dark:border-[#a97ca5] text-[#0e0e10] dark:text-white mx-0.5'>{sc.keys[0].toUpperCase()}</span>
+                                ? <span className='font-mono px-2 py-1 rounded bg-[#232228] border border-[#a97ca5] text-white mx-0.5'>{sc.keys[0].toUpperCase()}</span>
                                 : 'Set shortcut'}
                         </Button>
                       </div>
@@ -192,7 +192,7 @@ export default function EditShortcutsDialog({ open, onOpenChange, shortcuts, onS
                   <div className='flex gap-3 w-full justify-center mt-8'>
                     <Button
                       variant='outline'
-                      className='w-1/2 transition-colors duration-150 hover:bg-[#ececec] dark:hover:bg-[#28262b] active:bg-[#e0e0e0] dark:active:bg-[#232228]'
+                      className='w-1/2 transition-colors duration-150 hover:bg-[#28262b] active:bg-[#232228]'
                       onClick={() => onOpenChange(false)}
                       type='button'
                     >

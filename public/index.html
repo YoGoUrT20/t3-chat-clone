@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#09090b" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="forced-colors" content="none" />
     <meta
       name="description"
       content="Quiver AI - All in one AI assistant"
@@ -19,13 +21,18 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
     <style>
+        :root {
+            color-scheme: dark !important;
+        }
         body {
             font-family: 'Roboto', sans-serif;
+            background: #09090b !important;
+            color: #E0E8FF !important;
         }
-        .main-bg { background: linear-gradient(135deg, #18181b 0%, #09090b 100%); }
-        .left-panel-bg { background-color: #1B131A; }
-        .input-area-bg { background-color: #2C2430; }
-        .hover-bg-gray-700:hover { background-color: #374151;}
+        .main-bg { background: linear-gradient(135deg, #18181b 0%, #09090b 100%) !important; }
+        .left-panel-bg { background-color: #1B131A !important; }
+        .input-area-bg { background-color: #2C2430 !important; }
+        .hover-bg-gray-700:hover { background-color: #374151 !important;}
     </style>
     <!--
       Notice the use of %PUBLIC_URL% in the tags above.
